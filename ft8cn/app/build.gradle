@@ -35,6 +35,10 @@ android {
 
             }
         }
+        ndk {
+            // 仅保留 3 个 ABI：真机（arm64-v8a/armeabi-v7a）+ 模拟器（x86_64），与 ft8_w 交付库一致
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
         signingConfig signingConfigs.debug
     }
 
