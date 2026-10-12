@@ -75,6 +75,8 @@ public class Ft8Message {
     public static MessageHashMap hashList = new MessageHashMap();
 
 
+    public String decodedText = null;//原始解码文本（由新解码库直接给出），非空时优先显示
+
     public boolean fromDxcc = false;
     public boolean fromItu = false;
     public boolean fromCq = false;
@@ -162,6 +164,7 @@ public class Ft8Message {
             }
 
             extraInfo = message.extraInfo;
+            decodedText = message.decodedText;
             maidenGrid = message.maidenGrid;
             report = message.report;
             callToHash10 = message.callToHash10;
@@ -224,6 +227,10 @@ public class Ft8Message {
     @SuppressLint("DefaultLocale")
     public String getMessageText() {
 
+        if (decodedText != null && decodedText.length() > 0) {
+            //新解码库已给出完整文本，直接显示，避免按字段重新拼装产生偏差
+            return decodedText;
+        }
         if (i3 == 0 && n3 == 0) {//说明是自由文本
             if (extraInfo.length() < 13) {
                 return String.format("%-13s", extraInfo.toUpperCase());
