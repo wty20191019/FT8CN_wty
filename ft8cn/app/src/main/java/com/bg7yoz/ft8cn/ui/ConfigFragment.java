@@ -333,22 +333,64 @@ public class ConfigFragment extends Fragment {
         GeneralVariables.setBaseFrequency(freq);
     }
 
+    /** M1 临时计时：记录配置页各初始化步骤的耗时。vivo 会屏蔽 logcat，故同时写入文件。 */
+    private long tMark = 0;
+    private static int createCount = 0;
+    /** 方案B：缓存已创建的 View，避免每次进入设置页都重新 inflate。 */
+    private View cachedRootView = null;
+
+    private void trace(String msg) {
+        android.util.Log.e(TAG, msg);
+        try {
+            java.io.File f = new java.io.File(
+                    GeneralVariables.getMainContext().getCacheDir(), "cfg_timing.txt");
+            java.io.FileWriter w = new java.io.FileWriter(f, true);
+            w.write(System.currentTimeMillis() + "  " + msg + "\n");
+            w.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void mark(String step) {
+        long now = System.currentTimeMillis();
+        trace(String.format("配置页耗时 | %-30s | %5d ms", step, now - tMark));
+        tMark = now;
+    }
+
     @SuppressLint("SetTextI18n")
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        createCount++;
+        trace("配置页 onCreateView 第 " + createCount + " 次");
+        tMark = System.currentTimeMillis();
+        final long t0 = tMark;
+        tCreateRef = tMark;
+
+        //方案B：若已缓存 View，直接复用，不再重新 inflate
+        if (cachedRootView != null) {
+            if (cachedRootView.getParent() != null) {
+                ((ViewGroup) cachedRootView.getParent()).removeView(cachedRootView);
+            }
+            trace("配置页 复用缓存 View，耗时 = "
+                    + (System.currentTimeMillis() - t0) + " ms");
+            return cachedRootView;
+        }
+
         mainViewModel = MainViewModel.getInstance(this);
         binding = FragmentConfigBinding.inflate(inflater, container, false);
-
+        mark("inflate 布局");
 
         //设置时间偏移
         setUtcTimeOffsetSpinner();
+        mark("setUtcTimeOffsetSpinner");
 
         //设置PTT延时
         setPttDelaySpinner();
 
         //设置操作频段
         setBandsSpinner();
+        mark("setPttDelay/setBands");
 
         //设置波特率列表
         setBauRateSpinner();
@@ -361,9 +403,11 @@ public class ConfigFragment extends Fragment {
 
         //设置停止位
         setStopBitsSpinner();
+        mark("波特率/数据位/校验位/停止位");
 
         //设置电台名称，参数列表
         setRigNameSpinner();
+        mark("setRigNameSpinner");
 
         //设置解码模式
         setDecodeMode();
@@ -394,6 +438,7 @@ public class ConfigFragment extends Fragment {
 
         //设置各个spinner的OnItemSelected事件
         setSpinnerOnItemSelected();
+        mark("解码/音频/消息/控制/连接/监管/帮助/无回应");
 
         //显示滚动箭头
         new Handler().postDelayed(new Runnable() {
@@ -694,7 +739,73 @@ public class ConfigFragment extends Fragment {
         });
 
 
-        return binding.getRoot();
+        mark("onCreateView 总计");
+        cachedRootView = binding.getRoot();
+        final long tStart = tCreateRef;
+        trace("配置页 时间线 | onCreateView 结束 | +"
+                + (System.currentTimeMillis() - tStart) + " ms");
+        //主线程何时空闲（若这个 post 迟迟不执行，说明主线程被阻塞）
+        binding.getRoot().post(new Runnable() {
+            @Override
+            public void run() {
+                trace("配置页 时间线 | post 执行(主线程空闲) | +"
+                        + (System.currentTimeMillis() - tStart) + " ms");
+            }
+        });
+        //M1：量出"从开始创建到首帧绘制"的端到端耗时（含 inflate + measure + layout）
+        binding.getRoot().addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b
+                    , int ol, int ot, int or, int ob) {
+                v.removeOnLayoutChangeListener(this);
+                trace("配置页 时间线 | 首次 layout | +"
+                        + (System.currentTimeMillis() - tStart) + " ms");
+            }
+        });
+        binding.getRoot().getViewTreeObserver().addOnPreDrawListener(
+                new android.view.ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        binding.getRoot().getViewTreeObserver().removeOnPreDrawListener(this);
+                        trace("配置页 时间线 | 首次 preDraw | +"
+                                + (System.currentTimeMillis() - tStart) + " ms");
+                        return true;
+                    }
+                });
+        return cachedRootView;
+    }
+
+    /** onCreateView 的起点时间，用于时间线测量。 */
+    private long tCreateRef = 0;
+
+    @Override
+    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        trace("配置页 时间线 | onViewCreated | +"
+                + (System.currentTimeMillis() - tCreateRef) + " ms");
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        trace("配置页 时间线 | onStart | +"
+                + (System.currentTimeMillis() - tCreateRef) + " ms");
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        trace("配置页 时间线 | onResume | +"
+                + (System.currentTimeMillis() - tCreateRef) + " ms");
+    }
+
+    @Override
+    public void onDestroyView() {
+        //方案B：保留 View 供下次复用，仅从父容器摘除，避免 "child already has a parent"
+        if (cachedRootView != null && cachedRootView.getParent() != null) {
+            ((ViewGroup) cachedRootView.getParent()).removeView(cachedRootView);
+        }
+        super.onDestroyView();
     }
 
     /**

@@ -2,5 +2,15 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Ft8Vox" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../KochMorseTrainer" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../OperationResearch" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../ft8_lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../ft8_w" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../jtdx" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../lakey" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../mfsk-core" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../uv-k1-k5v3-firmware-custom" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../wsjtx" vcs="Git" />
   </component>
 </project>
