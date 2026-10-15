@@ -37,6 +37,7 @@ import com.bg7yoz.ft8cn.log.ThirdPartyService;
 import com.bg7yoz.ft8cn.maidenhead.MaidenheadGrid;
 import com.bg7yoz.ft8cn.rigs.InstructionSet;
 import com.bg7yoz.ft8cn.timer.UtcTimer;
+import com.bg7yoz.ft8cn.wave.AudioInputSource;
 
 import java.io.IOException;
 
@@ -57,6 +58,7 @@ public class ConfigFragment extends Fragment {
     private LaunchSupervisionSpinnerAdapter launchSupervisionSpinnerAdapter;
     private PttDelaySpinnerAdapter pttDelaySpinnerAdapter;
     private NoReplyLimitSpinnerAdapter noReplyLimitSpinnerAdapter;
+    private AudioInputSpinnerAdapter audioInputSpinnerAdapter;
     //private SerialPortSpinnerAdapter serialPortSpinnerAdapter;
 
     public ConfigFragment() {
@@ -373,6 +375,9 @@ public class ConfigFragment extends Fragment {
 
         //设置音频输出采样率
         setAudioOutputRateMode();
+
+        //设置录音音源
+        setAudioInputSourceSpinner();
 
         //设置显示消息模式
         setMessageMode();
@@ -838,6 +843,24 @@ public class ConfigFragment extends Fragment {
                     }
                 });
 
+                //录音音源
+                binding.audioInputSourceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                        int source = audioInputSpinnerAdapter.getSource(i);
+                        if (source == GeneralVariables.audioInputSource) return;
+                        GeneralVariables.audioInputSource = source;
+                        writeConfig("audioInputSource", String.valueOf(source));
+                        //立即用新音源重新开始录音，无需重启软件
+                        mainViewModel.hamRecorder.setAudioInputSource(source);
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> adapterView) {
+
+                    }
+                });
+
             }
         }, 1000);
     }
@@ -1161,6 +1184,22 @@ public class ConfigFragment extends Fragment {
         binding.audio24kRadioButton.setOnClickListener(listener);
         binding.audio48kRadioButton.setOnClickListener(listener);
 
+    }
+
+    /**
+     * 设置录音音源列表。部分机型默认音源采集不到声音时，可切换到这里选择的音源。
+     */
+    private void setAudioInputSourceSpinner() {
+        audioInputSpinnerAdapter = new AudioInputSpinnerAdapter(requireContext());
+        binding.audioInputSourceSpinner.setAdapter(audioInputSpinnerAdapter);
+        requireActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                audioInputSpinnerAdapter.notifyDataSetChanged();
+                binding.audioInputSourceSpinner.setSelection(
+                        audioInputSpinnerAdapter.getPosition(GeneralVariables.audioInputSource));
+            }
+        });
     }
 
 
@@ -1544,6 +1583,16 @@ public class ConfigFragment extends Fragment {
                     new HelpDialog(requireContext(), requireActivity()
                             , GeneralVariables.getStringFromResource(R.string.audio_output_help)
                             , true).show();
+            }
+        });
+
+        //录音音源帮助
+        binding.audioInputImageButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                new HelpDialog(requireContext(), requireActivity()
+                        , GeneralVariables.getStringFromResource(R.string.audio_input_help)
+                        , true).show();
             }
         });
 
