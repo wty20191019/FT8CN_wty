@@ -324,6 +324,7 @@
     <string name="itu_image">itu zone</string>
     <string name="recorder_cannot_record">Cannot record , Please check permissions . %s</string>
     <string name="recorder_stop_record_error">Stop record error! %s</string>
+    <string name="recorder_create_error">Unable to create audio recorder, please try another audio source.</string>
     <string name="delete_confirmation">Delete Confirmation</string>
     <string name="are_you_sure_delete">Are you sure you want to delete?</string>
     <string name="ok_confirmed">OK</string>
@@ -463,6 +464,14 @@
     <string name="excludeCallsign_help">excludeCallsign_en.txt</string>
     <string name="swlMode_help">swlMode_en.txt</string>
     <string name="audio_output_help">audio_output_help_en.txt</string>
+    <string name="audio_input">Audio input</string>
+    <string name="audio_input_default">Default (DEFAULT)</string>
+    <string name="audio_input_mic">Microphone (MIC)</string>
+    <string name="audio_input_voice_recognition">Recognition (VOICE_RECOGNITION)</string>
+    <string name="audio_input_voice_communication">Communication (VOICE_COMMUNICATION)</string>
+    <string name="audio_input_unprocessed">Unprocessed (UNPROCESSED)</string>
+    <string name="audio_input_camcorder">Camcorder (CAMCORDER)</string>
+    <string name="audio_input_help">audio_input_help_en.txt</string>
     <string name="deep_mode_help">decode_help_en.txt</string>
     <string name="clear_cache_data_help">clear_cache_data_en.txt</string>
     <string name="html_query_logs">Query the logs</string>

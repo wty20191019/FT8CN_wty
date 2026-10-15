@@ -28,6 +28,7 @@ import com.bg7yoz.ft8cn.log.OnQueryQSLRecordCallsign;
 import com.bg7yoz.ft8cn.log.QSLCallsignRecord;
 import com.bg7yoz.ft8cn.log.QSLRecord;
 import com.bg7yoz.ft8cn.log.QSLRecordStr;
+import com.bg7yoz.ft8cn.wave.AudioInputSource;
 import com.bg7yoz.ft8cn.rigs.BaseRigOperation;
 import com.bg7yoz.ft8cn.timer.UtcTimer;
 
@@ -2184,6 +2185,10 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                 }
                 if (name.equalsIgnoreCase("deepMode")) {//是不是深度解码模式
                     GeneralVariables.deepDecodeMode =result.equals("1");
+                }
+                if (name.equalsIgnoreCase("audioInputSource")) {//录音音源
+                    GeneralVariables.audioInputSource = result.equals("")
+                            ? AudioInputSource.DEFAULT : Integer.parseInt(result);
                 }
                 if (name.equalsIgnoreCase("dataBits")) {//串口数据位
                     GeneralVariables.serialDataBits =Integer.parseInt(result);

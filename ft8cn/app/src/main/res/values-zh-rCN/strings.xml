@@ -316,6 +316,7 @@
     <string name="html_sequential">发射时序</string>
     <string name="recorder_cannot_record">无法录音，请检查是否有录音的权限。 %s</string>
     <string name="recorder_stop_record_error">停止录音时出错！ %s</string>
+    <string name="recorder_create_error">无法创建录音对象，请尝试更换音源。</string>
 <!--    <string name="hello_blank_fragment">Hello blank fragment</string>-->
     <string name="qsl_qrz_confirmation_s">QRZ：%s</string>
     <string name="html_tracking_qso_information">通联信息</string>
@@ -455,6 +456,14 @@
     <string name="excludeCallsign_help">excludeCallsign.txt</string>
     <string name="swlMode_help">swlMode.txt</string>
     <string name="audio_output_help">audio_output_help.txt</string>
+    <string name="audio_input">音源</string>
+    <string name="audio_input_default">默认 (DEFAULT)</string>
+    <string name="audio_input_mic">麦克风 (MIC)</string>
+    <string name="audio_input_voice_recognition">语音识别 (VOICE_RECOGNITION)</string>
+    <string name="audio_input_voice_communication">语音通信 (VOICE_COMMUNICATION)</string>
+    <string name="audio_input_unprocessed">未处理 (UNPROCESSED)</string>
+    <string name="audio_input_camcorder">摄像机 (CAMCORDER)</string>
+    <string name="audio_input_help">audio_input_help.txt</string>
     <string name="clear_cache_data_help">clear_cache_data.txt</string>
     <string name="html_query_logs">查询日志</string>
     <string name="html_qso_all">全部</string>

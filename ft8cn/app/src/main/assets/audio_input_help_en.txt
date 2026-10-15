@@ -1,0 +1,13 @@
+Audio Input (Recording Source) Setting
+
+Different Android devices handle microphone audio sources differently. On some models (for example, certain vivo models), the "Default (DEFAULT)" audio source captures silence, so signals cannot be decoded. In that case, try other audio sources one by one.
+
+Audio sources:
+Default (DEFAULT): chosen automatically by the system. Best compatibility, but a few devices may capture no sound.
+Microphone (MIC): uses the microphone directly. Most commonly used.
+Voice recognition (VOICE_RECOGNITION): usually has echo cancellation and automatic gain control disabled, which is better for decoding digital signals such as FT8.
+Voice communication (VOICE_COMMUNICATION): intended for phone calls, may include echo cancellation. Usually not recommended.
+Unprocessed (UNPROCESSED): requests the raw, unprocessed audio from the system. Supported by some devices.
+Camcorder (CAMCORDER): intended for video recording.
+
+Tip: if no sound is received (no signal on the spectrum or waterfall, and nothing can be decoded), try the other audio sources one by one and pick the one that captures sound normally. The recording restarts immediately after switching, so no need to restart the app.
