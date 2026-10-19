@@ -83,7 +83,7 @@
     <string name="bluetooth_headset_mode">進入到藍牙耳機模式</string>>
     <string name="bluetooth_Headset_mode_cancelled">離開藍牙耳機模式</string>>
 
-    <string name="version_info">FT8CN Ver %s\nBG7YOZ\n%s</string>>
+    <string name="version_info">FT8CN Ver %s\nBG7YOZ\nBG7ZJW\n%s</string>>
 
 
     <string name="exit">退出</string>>
@@ -316,6 +316,7 @@
     <string name="html_target_callsign">目標呼號</string>
     <string name="html_sequential">發射時序</string>
     <string name="recorder_cannot_record">無法錄音，請檢查是否有錄音的權限。  %s</string>
+    <string name="recorder_create_error">無法建立錄音物件，請嘗試更換音源。</string>
     <string name="recorder_stop_record_error">停止錄音時出錯！ %s</string>
 <!--    <string name="hello_blank_fragment">Hello blank fragment</string>-->
     <string name="qsl_qrz_confirmation_s">QRZ：%s</string>
@@ -456,6 +457,14 @@
     <string name="excludeCallsign_help">excludeCallsign.txt</string>
     <string name="swlMode_help">swlMode.txt</string>
     <string name="audio_output_help">audio_output_help.txt</string>
+    <string name="audio_input">音源</string>
+    <string name="audio_input_default">預設 (DEFAULT)</string>
+    <string name="audio_input_mic">麥克風 (MIC)</string>
+    <string name="audio_input_voice_recognition">語音辨識 (VOICE_RECOGNITION)</string>
+    <string name="audio_input_voice_communication">語音通訊 (VOICE_COMMUNICATION)</string>
+    <string name="audio_input_unprocessed">未處理 (UNPROCESSED)</string>
+    <string name="audio_input_camcorder">攝影機 (CAMCORDER)</string>
+    <string name="audio_input_help">audio_input_help.txt</string>
     <string name="clear_cache_data_help">clear_cache_data.txt</string>
     <string name="html_query_logs">查詢日誌</string>
     <string name="html_qso_all">全部</string>

@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.media.AudioFormat;
 import android.util.Log;
 
+import com.bg7yoz.ft8cn.GeneralVariables;
+
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -37,11 +39,32 @@ public class HamRecorder {
     private OnVoiceMonitorChanged onVoiceMonitorChanged=null;
 
     private boolean isMicRecord=true;
-    private MicRecorder micRecorder=new MicRecorder();
+    private int audioInputSource=GeneralVariables.audioInputSource;//当前使用的录音音源
+    private MicRecorder micRecorder;
 
 
     public HamRecorder(OnVoiceMonitorChanged onVoiceMonitorChanged){
         this.onVoiceMonitorChanged=onVoiceMonitorChanged;
+        micRecorder=new MicRecorder(audioInputSource);
+    }
+
+    /**
+     * 设置录音的音源。若当前正在使用MIC录音，会立即停止并用新音源重新开始录音，
+     * 以便用户切换后无需重启软件即可生效。切换到不支持音源时，MicRecorder内部会回退。
+     *
+     * @param source 音源，取值见 {@link AudioInputSource}
+     */
+    public void setAudioInputSource(int source){
+        if (source==audioInputSource) return;
+        Log.d(TAG, String.format("切换录音音源：%d -> %d", audioInputSource, source));
+        boolean needRestart = isRunning && isMicRecord;
+        micRecorder.stopRecord();//停掉旧的录音并释放资源
+        audioInputSource=source;
+        GeneralVariables.audioInputSource=source;
+        micRecorder=new MicRecorder(source);
+        if (needRestart){
+            startRecord();
+        }
     }
 
 

@@ -489,6 +489,8 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 mainViewModel.ft8TransmitSignal.setTimer_sec(GeneralVariables.transmitDelay);
+                //配置读取晚于录音对象创建，这里应用一次录音音源，使已保存的音源设置生效
+                mainViewModel.hamRecorder.setAudioInputSource(GeneralVariables.audioInputSource);
                 //如果呼号、网格为空，就进入设置界面
                 if (GeneralVariables.getMyMaidenheadGrid().equals("")
                         || GeneralVariables.myCallsign.equals("")) {

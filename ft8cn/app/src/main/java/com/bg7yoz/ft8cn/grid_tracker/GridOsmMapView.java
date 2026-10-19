@@ -1,6 +1,6 @@
 package com.bg7yoz.ft8cn.grid_tracker;
 /**
- * OsmMapView中画通联线、画网格等操作。地图是sqlite模式，采用离线方式（nightUSGS4Layer）。
+ * OsmMapView中画通联线、画网格等操作。地图是sqlite模式，采用离线方式（world_z5）。
  * @author BGY70Z
  * @date 2023-03-20
  */
@@ -105,7 +105,7 @@ public class GridOsmMapView {
                 , CustomZoomButtonsDisplay.VerticalPosition.BOTTOM);
         gridMapView.setTilesScaledToDpi(true);
 
-        gridMapView.setMaxZoomLevel(6.0);
+        gridMapView.setMaxZoomLevel(8.0);
         gridMapView.setMinZoomLevel(1.0);
         gridMapView.getController().setZoom(1.6);
 
@@ -280,9 +280,11 @@ public class GridOsmMapView {
      * @return 图层
      */
     public synchronized GridPolygon getGridPolygon(String grid) {
+        if (grid == null) return null;
+        String key = grid.toUpperCase();
         synchronized (gridPolygons) {
             for (GridPolygon polygon : gridPolygons) {
-                if (polygon.grid.equals(grid)) return polygon;
+                if (polygon.grid.equalsIgnoreCase(key)) return polygon;
             }
         }
         return null;
@@ -362,7 +364,12 @@ public class GridOsmMapView {
      * @param gridMode 模式
      * @return 发现
      */
-    public boolean upgradeGridMode(String grid, GridMode gridMode) {
+    public synchronized boolean upgradeGridMode(String grid, GridMode gridMode) {
+        if (grid == null || grid.length() < 2) return false;
+        grid = grid.toUpperCase();
+
+        //4位网格和6位网格的状态互相独立：
+        //6位小网格的QSO/QSL不能把整个4位父网格也染成黄色/红色
         GridPolygon polygon = getGridPolygon(grid);
         if (polygon != null) {
             polygon.upgradeGridMode(gridMode);
@@ -381,8 +388,10 @@ public class GridOsmMapView {
      * @return 返回一个网格图层对象
      */
     public synchronized GridPolygon addGridPolygon(String grid, GridMode gridMode) {
+        if (grid == null) return null;
         if (gridMapView == null) return null;
         if (gridMapView.getRepository()==null) return null;
+        grid = grid.toUpperCase();
         try {//当日志量过多时，会出现闪退的问题，在此处做一个异常捕获，防止闪退
 
             GridPolygon polygon = new GridPolygon(context, gridMapView, grid, gridMode);
@@ -699,7 +708,7 @@ public class GridOsmMapView {
 
             setTitle(grid);
             setStrokeWidth(3f);
-            setStrokeColor(this.context.getColor(R.color.osm_grid_out_line_color));
+            //边框颜色在 updateGridMode() 中按网格状态设置
 
             updateGridMode();
 
@@ -712,20 +721,26 @@ public class GridOsmMapView {
 
         public synchronized void updateGridMode() {
             synchronized (this) {//防止闪退
+                int borderColor = Color.WHITE;
                 switch (gridMode) {
                     case QSL:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsl_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qsl_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsl_color));
                         break;
                     case QSO:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qso_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qso_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qso_color));
                         break;
                     case QSX:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsx_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qsx_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsx_color));
                         break;
                 }
+                //用状态亮色替换原来的白色边框
+                setStrokeColor(borderColor);
             }
         }
 

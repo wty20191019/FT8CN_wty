@@ -18,6 +18,7 @@ import com.bg7yoz.ft8cn.ft8transmit.QslRecordList;
 import com.bg7yoz.ft8cn.html.HtmlContext;
 import com.bg7yoz.ft8cn.rigs.BaseRigOperation;
 import com.bg7yoz.ft8cn.timer.UtcTimer;
+import com.bg7yoz.ft8cn.wave.AudioInputSource;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,6 +44,8 @@ public class GeneralVariables {
 
     public static boolean audioOutput32Bit = true;//音频输出类型true=float,false=int16
     public static int audioSampleRate = 12000;//发射音频的采样率
+    //录音音源（MediaRecorder.AudioSource）。部分机型默认音源采集不到声音，可切换解决。
+    public static int audioInputSource = AudioInputSource.DEFAULT;
 
     public static MutableLiveData<Float> mutableVolumePercent = new MutableLiveData<>();
     public static float volumePercent = 0.5f;//播放音频的音量,是百分比
@@ -568,9 +571,23 @@ public class GeneralVariables {
      * @param grid     网格
      */
     public static void addCallsignAndGrid(String callsign, String grid) {
-        if (grid.length() >= 4) {
+        addCallsignAndGrid(callsign, grid, true);
+    }
+
+    /**
+     * 只写入呼号-网格对应表，不触发新网格通知。
+     * 用于加载历史数据，避免历史网格被地图当成QSX显示。
+     */
+    public static void addCallsignAndGridSilent(String callsign, String grid) {
+        addCallsignAndGrid(callsign, grid, false);
+    }
+
+    private static void addCallsignAndGrid(String callsign, String grid, boolean notify) {
+        if (grid != null && grid.length() >= 4) {
             callsignAndGrids.put(callsign, grid);
-            mutableNewGrid.postValue(grid);
+            if (notify) {
+                mutableNewGrid.postValue(grid);
+            }
         }
     }
 
