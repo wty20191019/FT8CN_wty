@@ -689,10 +689,15 @@ public class GridOsmMapView {
     }
 
     public static class GridPolygon extends Polygon {
+        private static final float GRID_STROKE_DP = 1.2f;//亮色边框宽度
         private static final float GLOW_OUTER_DP = 6f;//外层光晕宽度
-        private static final float GLOW_INNER_DP = 2f;//内层光晕宽度
+        private static final float GLOW_MIDDLE_DP = 3f;//中层光晕宽度
         private static final int GLOW_OUTER_ALPHA = 70;//外层光晕透明度
-        private static final int GLOW_INNER_ALPHA = 110;//内层光晕透明度
+        private static final int GLOW_MIDDLE_ALPHA = 110;//中层光晕透明度
+
+        private static final int FILL_ALPHA_QSL = 0x4D;//已确认网格填充约30%
+        private static final int FILL_ALPHA_QSO = 0x2E;//已通联网格填充约18%
+        private static final int FILL_ALPHA_QSX = 0x33;//仅听到网格填充约20%
 
         public String grid;
         public GridMode gridMode;
@@ -700,12 +705,12 @@ public class GridOsmMapView {
         //private BasicInfoWindow infoWindow;
         //public String details;
 
-        //发光效果：在地图缩小时，用网格自身颜色的光晕增强边缘对比度
+        //发光效果：在网格外侧绘制两层同色描边，形成类似霓虹灯的光晕
         private final Path glowPath = new Path();
         private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Point glowPoint = new Point();
         private final float glowOuterWidth;
-        private final float glowInnerWidth;
+        private final float glowMiddleWidth;
         private int glowColor = Color.WHITE;
 
         public GridPolygon(Context context, MapView mapView, String grid, GridMode gridMode) {
@@ -715,14 +720,12 @@ public class GridOsmMapView {
             this.context = context;
 
             setTitle(grid);
-            //网格不画边框；保留透明描边宽度用于扩大点击范围
-            setStrokeWidth(3f);
-            setStrokeColor(Color.TRANSPARENT);
 
-            //光晕宽度按屏幕密度换算，避免不同设备上粗细差异过大
+            //边框和光晕宽度按屏幕密度换算，避免不同设备上粗细差异过大
             float density = context.getResources().getDisplayMetrics().density;
+            setStrokeWidth(GRID_STROKE_DP * density);
             glowOuterWidth = GLOW_OUTER_DP * density;
-            glowInnerWidth = GLOW_INNER_DP * density;
+            glowMiddleWidth = GLOW_MIDDLE_DP * density;
             glowPaint.setStyle(Paint.Style.STROKE);
             glowPaint.setStrokeJoin(Paint.Join.ROUND);
             glowPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -779,8 +782,8 @@ public class GridOsmMapView {
             glowPaint.setStrokeWidth(glowOuterWidth);
             canvas.drawPath(glowPath, glowPaint);
 
-            glowPaint.setColor(withAlpha(glowColor, GLOW_INNER_ALPHA));
-            glowPaint.setStrokeWidth(glowInnerWidth);
+            glowPaint.setColor(withAlpha(glowColor, GLOW_MIDDLE_ALPHA));
+            glowPaint.setStrokeWidth(glowMiddleWidth);
             canvas.drawPath(glowPath, glowPaint);
         }
 
@@ -803,23 +806,32 @@ public class GridOsmMapView {
 
         public synchronized void updateGridMode() {
             synchronized (this) {//防止闪退
+                int baseColor = Color.WHITE;
+                int fillAlpha = FILL_ALPHA_QSX;
+                float glowLighten = 0.25f;
+
                 switch (gridMode) {
                     case QSL:
-                        this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsl_color));
-                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qsl_color), 0.55f);
-                        //setFillColor(this.context.getColor(R.color.tracker_sample_qsl_color));
+                        baseColor = this.context.getColor(R.color.tracker_grid_qsl_color);
+                        fillAlpha = FILL_ALPHA_QSL;
+                        glowLighten = 0.30f;
                         break;
                     case QSO:
-                        this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qso_color));
-                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qso_color), 0.35f);
-                        //setFillColor(this.context.getColor(R.color.tracker_sample_qso_color));
+                        baseColor = this.context.getColor(R.color.tracker_grid_qso_color);
+                        fillAlpha = FILL_ALPHA_QSO;
+                        glowLighten = 0.15f;
                         break;
                     case QSX:
-                        this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsx_color));
-                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qsx_color), 0.55f);
-                        //setFillColor(this.context.getColor(R.color.tracker_sample_qsx_color));
+                        baseColor = this.context.getColor(R.color.tracker_grid_qsx_color);
+                        fillAlpha = FILL_ALPHA_QSX;
+                        glowLighten = 0.25f;
                         break;
                 }
+
+                //填充保持半透明，边框使用不透明的状态色，形成参考图中的霓虹描边效果
+                this.mFillPaint.setColor(withAlpha(baseColor, fillAlpha));
+                setStrokeColor(baseColor);
+                glowColor = lightenColor(baseColor, glowLighten);
             }
         }
 

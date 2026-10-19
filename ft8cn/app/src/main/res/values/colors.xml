@@ -156,6 +156,10 @@
     <color name="welcome_layout_text_color">#535353</color>
     <color name="welcome_logo_text_color">#FF6200EE</color>
     <color name="osm_grid_out_line_color">#E6FFFFFF</color>
+    <!--   地图网格：亮色描边 + 低透明度填充，参考卫星底图上的霓虹网格效果-->
+    <color name="tracker_grid_qsl_color">#FFFF3B30</color>
+    <color name="tracker_grid_qso_color">#FFFFD400</color>
+    <color name="tracker_grid_qsx_color">#FF3FA9FF</color>
 
 
     <color name="char_bar_1">#2EB4FD</color>
