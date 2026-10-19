@@ -1,6 +1,6 @@
 package com.bg7yoz.ft8cn.grid_tracker;
 /**
- * OsmMapView中画通联线、画网格等操作。地图是sqlite模式，采用离线方式（nightUSGS4Layer）。
+ * OsmMapView中画通联线、画网格等操作。地图是sqlite模式，采用离线方式（world_z5）。
  * @author BGY70Z
  * @date 2023-03-20
  */

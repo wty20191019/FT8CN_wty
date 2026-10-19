@@ -5,7 +5,7 @@
     <string name="nav_menu_title_my_calling">Calling</string>
     <string name="nav_menu_title_history">QSO Logs</string>
     <string name="nav_menu_title_config">Settings</string>
-    <string name="map_name" translatable="false">nightUSGS4Layer.sqlite</string>
+    <string name="map_name" translatable="false">world_z5.sqlite</string>
 
 
     <string name="run_decode">Start decoding</string>
