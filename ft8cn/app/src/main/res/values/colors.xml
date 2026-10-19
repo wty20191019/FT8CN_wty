@@ -5,11 +5,11 @@
     <color name="transmitLayout_background">#B233007E</color>
 
 
-    <color name="tracker_sample_qsl_color">#7fff0000</color>
+    <color name="tracker_sample_qsl_color">#B3FF0000</color>
     <color name="tracker_sample_qsl_text_color">#FFFFFF</color>
-    <color name="tracker_sample_qso_color">#7fffff00</color>
+    <color name="tracker_sample_qso_color">#B3FFFF00</color>
     <color name="tracker_sample_qso_text_color">#FF0000</color>
-    <color name="tracker_sample_qsx_color">#7f0000ff</color>
+    <color name="tracker_sample_qsx_color">#B30000FF</color>
     <color name="tracker_sample_qsx_text_color">#FFFFFF</color>
     <color name="xiegu_icon_start_color">#BF9C9C9C</color>
     <color name="xiegu_icon_end_color">#E1FFFFFF</color>
@@ -155,7 +155,7 @@
     <color name="welcome_layout_ground_color">#EDEDED</color>
     <color name="welcome_layout_text_color">#535353</color>
     <color name="welcome_logo_text_color">#FF6200EE</color>
-    <color name="osm_grid_out_line_color">#7FFFFFFF</color>
+    <color name="osm_grid_out_line_color">#E6FFFFFF</color>
 
 
     <color name="char_bar_1">#2EB4FD</color>

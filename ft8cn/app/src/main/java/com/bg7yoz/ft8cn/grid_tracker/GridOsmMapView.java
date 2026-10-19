@@ -16,9 +16,12 @@ import static java.lang.Math.tan;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.util.Log;
@@ -42,6 +45,7 @@ import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.CustomZoomButtonsDisplay;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.Projection;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polygon;
 import org.osmdroid.views.overlay.Polyline;
@@ -685,11 +689,24 @@ public class GridOsmMapView {
     }
 
     public static class GridPolygon extends Polygon {
+        private static final float GLOW_OUTER_DP = 4f;//外层光晕宽度
+        private static final float GLOW_INNER_DP = 2f;//内层光晕宽度
+        private static final int GLOW_OUTER_ALPHA = 50;//外层光晕透明度
+        private static final int GLOW_INNER_ALPHA = 110;//内层光晕透明度
+
         public String grid;
         public GridMode gridMode;
         private final Context context;
         //private BasicInfoWindow infoWindow;
         //public String details;
+
+        //发光效果：在地图缩小时，用网格自身颜色的光晕增强边缘对比度
+        private final Path glowPath = new Path();
+        private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Point glowPoint = new Point();
+        private final float glowOuterWidth;
+        private final float glowInnerWidth;
+        private int glowColor = Color.WHITE;
 
         public GridPolygon(Context context, MapView mapView, String grid, GridMode gridMode) {
             super(mapView);
@@ -701,6 +718,14 @@ public class GridOsmMapView {
             setStrokeWidth(3f);
             setStrokeColor(this.context.getColor(R.color.osm_grid_out_line_color));
 
+            //光晕宽度按屏幕密度换算，避免不同设备上粗细差异过大
+            float density = context.getResources().getDisplayMetrics().density;
+            glowOuterWidth = GLOW_OUTER_DP * density;
+            glowInnerWidth = GLOW_INNER_DP * density;
+            glowPaint.setStyle(Paint.Style.STROKE);
+            glowPaint.setStrokeJoin(Paint.Join.ROUND);
+            glowPaint.setStrokeCap(Paint.Cap.ROUND);
+
             updateGridMode();
 
             ArrayList<GeoPoint> pts = LatLngs2GeoPoints(MaidenheadGrid.gridToPolygon(grid));
@@ -710,19 +735,87 @@ public class GridOsmMapView {
 
         }
 
+        @Override
+        public void draw(Canvas canvas, Projection projection) {
+            drawGlow(canvas, projection);
+            super.draw(canvas, projection);
+        }
+
+        /**
+         * 在网格下方画两层半透明描边，形成类似发光的光晕。
+         * 光晕画在填充之前，因此只会在网格边缘外侧显现。
+         */
+        private void drawGlow(Canvas canvas, Projection projection) {
+            if (!isVisible()) return;
+            List<GeoPoint> points = getPoints();
+            if (points == null || points.size() < 3) return;
+
+            glowPath.rewind();
+            boolean started = false;
+            int firstX = 0;
+            int worldSize = (int) Math.round(projection.getWorldMapSize());
+
+            for (GeoPoint point : points) {
+                projection.toPixels(point, glowPoint);
+                int x = glowPoint.x;
+                int y = glowPoint.y;
+                if (!started) {
+                    firstX = x;
+                    glowPath.moveTo(x, y);
+                    started = true;
+                } else {
+                    //处理 180° 经线附近的环绕，避免光晕横跨整张地图
+                    if (worldSize > 0) {
+                        while (x - firstX > worldSize / 2) x -= worldSize;
+                        while (firstX - x > worldSize / 2) x += worldSize;
+                    }
+                    glowPath.lineTo(x, y);
+                }
+            }
+            glowPath.close();
+
+            glowPaint.setColor(withAlpha(glowColor, GLOW_OUTER_ALPHA));
+            glowPaint.setStrokeWidth(glowOuterWidth);
+            canvas.drawPath(glowPath, glowPaint);
+
+            glowPaint.setColor(withAlpha(glowColor, GLOW_INNER_ALPHA));
+            glowPaint.setStrokeWidth(glowInnerWidth);
+            canvas.drawPath(glowPath, glowPaint);
+        }
+
+        /**
+         * 把颜色向白色混合，让光晕在深色地图上更醒目。
+         */
+        private static int lightenColor(int color, float factor) {
+            int r = Color.red(color);
+            int g = Color.green(color);
+            int b = Color.blue(color);
+            r += (int) ((255 - r) * factor);
+            g += (int) ((255 - g) * factor);
+            b += (int) ((255 - b) * factor);
+            return Color.rgb(r, g, b);
+        }
+
+        private static int withAlpha(int color, int alpha) {
+            return (color & 0x00FFFFFF) | (alpha << 24);
+        }
+
         public synchronized void updateGridMode() {
             synchronized (this) {//防止闪退
                 switch (gridMode) {
                     case QSL:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsl_color));
+                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qsl_color), 0.55f);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsl_color));
                         break;
                     case QSO:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qso_color));
+                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qso_color), 0.35f);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qso_color));
                         break;
                     case QSX:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsx_color));
+                        glowColor = lightenColor(this.context.getColor(R.color.tracker_sample_qsx_color), 0.55f);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsx_color));
                         break;
                 }
