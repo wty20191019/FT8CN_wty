@@ -707,9 +707,7 @@ public class GridOsmMapView {
             this.context = context;
 
             setTitle(grid);
-            //高亮边框加粗到2dp
-            float density = context.getResources().getDisplayMetrics().density;
-            setStrokeWidth(2f * density);
+            setStrokeWidth(3f);
             //边框颜色在 updateGridMode() 中按网格状态设置
 
             updateGridMode();
