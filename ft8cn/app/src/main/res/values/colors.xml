@@ -5,11 +5,11 @@
     <color name="transmitLayout_background">#B233007E</color>
 
 
-    <color name="tracker_sample_qsl_color">#7fff0000</color>
+    <color name="tracker_sample_qsl_color">#7FFF3B30</color>
     <color name="tracker_sample_qsl_text_color">#FFFFFF</color>
-    <color name="tracker_sample_qso_color">#7fffff00</color>
+    <color name="tracker_sample_qso_color">#7FFFD400</color>
     <color name="tracker_sample_qso_text_color">#FF0000</color>
-    <color name="tracker_sample_qsx_color">#7f0000ff</color>
+    <color name="tracker_sample_qsx_color">#7F3FA9FF</color>
     <color name="tracker_sample_qsx_text_color">#FFFFFF</color>
     <color name="xiegu_icon_start_color">#BF9C9C9C</color>
     <color name="xiegu_icon_end_color">#E1FFFFFF</color>
@@ -156,7 +156,7 @@
     <color name="welcome_layout_text_color">#535353</color>
     <color name="welcome_logo_text_color">#FF6200EE</color>
     <color name="osm_grid_out_line_color">#E6FFFFFF</color>
-    <!--   地图网格：亮色描边 + 低透明度填充，参考卫星底图上的霓虹网格效果-->
+    <!--   地图网格：亮色描边 + 半透明填充，参考卫星底图上的霓虹网格效果-->
     <color name="tracker_grid_qsl_color">#FFFF3B30</color>
     <color name="tracker_grid_qso_color">#FFFFD400</color>
     <color name="tracker_grid_qsx_color">#FF3FA9FF</color>

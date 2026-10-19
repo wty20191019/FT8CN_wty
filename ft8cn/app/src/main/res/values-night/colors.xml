@@ -9,11 +9,11 @@
     <color name="fromcall_is_qso_text_color">#A3BCFB</color>
 
 
-    <color name="tracker_sample_qsl_color">#7fff0000</color>
+    <color name="tracker_sample_qsl_color">#7FFF3B30</color>
     <color name="tracker_sample_qsl_text_color">#36DFCB</color>
-    <color name="tracker_sample_qso_color">#7fffff00</color>
+    <color name="tracker_sample_qso_color">#7FFFD400</color>
     <color name="tracker_sample_qso_text_color">#022D83</color>
-    <color name="tracker_sample_qsx_color">#7f0000ff</color>
+    <color name="tracker_sample_qsx_color">#7F3FA9FF</color>
     <color name="tracker_sample_qsx_text_color">#36DFCB</color>
     <color name="tracker_select_line_color">#FFFDBE00</color>
     <color name="tracker_line_color">#FFFFFFFF</color>

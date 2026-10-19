@@ -695,9 +695,7 @@ public class GridOsmMapView {
         private static final int GLOW_OUTER_ALPHA = 70;//外层光晕透明度
         private static final int GLOW_MIDDLE_ALPHA = 110;//中层光晕透明度
 
-        private static final int FILL_ALPHA_QSL = 0x4D;//已确认网格填充约30%
-        private static final int FILL_ALPHA_QSO = 0x2E;//已通联网格填充约18%
-        private static final int FILL_ALPHA_QSX = 0x33;//仅听到网格填充约20%
+        private static final int FILL_ALPHA = 0x7F;//网格填充50%透明
 
         public String grid;
         public GridMode gridMode;
@@ -807,29 +805,25 @@ public class GridOsmMapView {
         public synchronized void updateGridMode() {
             synchronized (this) {//防止闪退
                 int baseColor = Color.WHITE;
-                int fillAlpha = FILL_ALPHA_QSX;
                 float glowLighten = 0.25f;
 
                 switch (gridMode) {
                     case QSL:
                         baseColor = this.context.getColor(R.color.tracker_grid_qsl_color);
-                        fillAlpha = FILL_ALPHA_QSL;
                         glowLighten = 0.30f;
                         break;
                     case QSO:
                         baseColor = this.context.getColor(R.color.tracker_grid_qso_color);
-                        fillAlpha = FILL_ALPHA_QSO;
                         glowLighten = 0.15f;
                         break;
                     case QSX:
                         baseColor = this.context.getColor(R.color.tracker_grid_qsx_color);
-                        fillAlpha = FILL_ALPHA_QSX;
                         glowLighten = 0.25f;
                         break;
                 }
 
-                //填充保持半透明，边框使用不透明的状态色，形成参考图中的霓虹描边效果
-                this.mFillPaint.setColor(withAlpha(baseColor, fillAlpha));
+                //填充保持 50% 透明，边框使用不透明的状态色，形成参考图中的霓虹描边效果
+                this.mFillPaint.setColor(withAlpha(baseColor, FILL_ALPHA));
                 setStrokeColor(baseColor);
                 glowColor = lightenColor(baseColor, glowLighten);
             }
