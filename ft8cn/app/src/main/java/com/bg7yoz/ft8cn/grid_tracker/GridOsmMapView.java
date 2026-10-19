@@ -368,24 +368,8 @@ public class GridOsmMapView {
         if (grid == null || grid.length() < 2) return false;
         grid = grid.toUpperCase();
 
-        //6位网格的QSO/QSL同时升级其4位父网格，避免父网格仍显示为QSX
-        if ((gridMode == GridMode.QSO || gridMode == GridMode.QSL) && grid.length() > 4) {
-            GridPolygon parent = getGridPolygon(grid.substring(0, 4));
-            if (parent != null) parent.upgradeGridMode(gridMode);
-        }
-
-        //4位QSX如果内部已有6位QSO/QSL，则直接使用更高的状态
-        if (gridMode == GridMode.QSX && grid.length() == 4) {
-            synchronized (gridPolygons) {
-                for (GridPolygon polygon : gridPolygons) {
-                    if (polygon.grid.length() > 4 && polygon.grid.startsWith(grid)
-                            && polygon.gridMode.ordinal() > gridMode.ordinal()) {
-                        gridMode = polygon.gridMode;
-                    }
-                }
-            }
-        }
-
+        //4位网格和6位网格的状态互相独立：
+        //6位小网格的QSO/QSL不能把整个4位父网格也染成黄色/红色
         GridPolygon polygon = getGridPolygon(grid);
         if (polygon != null) {
             polygon.upgradeGridMode(gridMode);
