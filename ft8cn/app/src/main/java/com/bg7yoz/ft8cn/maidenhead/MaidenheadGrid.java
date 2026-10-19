@@ -19,6 +19,9 @@ import java.util.List;
 public class MaidenheadGrid {
     private static final String TAG = "MaidenheadGrid";
     private static final double EARTH_RADIUS = 6371393; // 平均半径,单位：m；不是赤道半径。赤道为6378左右
+    //6位网格：每个4位网格再分为24×24小格
+    private static final double GRID6_LON = 2.0 / 24.0; //6位网格经度宽度
+    private static final double GRID6_LAT = 1.0 / 24.0; //6位网格纬度宽度
 
     /**
      * 计算梅登海德网格的经纬度，4字符或6字符。如果网格数据不正确，返回null。如果是四字符的，尾部加ll,取中间的位置。
@@ -55,7 +58,7 @@ public class MaidenheadGrid {
 
         if (grid.length()==6){
             z=grid.toUpperCase().getBytes()[5]-'A'+0.5f;
-            z=z*(1/18f);
+            z=z*GRID6_LAT;
         }
         lat=x+y+z-90;
 
@@ -78,7 +81,7 @@ public class MaidenheadGrid {
         y*=2;
         if (grid.length()==6){
             z=grid.toUpperCase().getBytes()[4]-'A'+0.5;
-            z=z*(2/18f);
+            z=z*GRID6_LON;
         }
         lng=x+y+z-180;
         if (lat>85) lat=85;//防止在地图上越界
@@ -113,7 +116,7 @@ public class MaidenheadGrid {
         }
         if (grid.length() > 4) {
             z = grid.toUpperCase().getBytes()[5] - 'A';
-            z = z * (1f / 18f);
+            z = z * GRID6_LAT;
         }
         lat1 = x + y + z - 90;
         if (lat1<-85.0){
@@ -141,7 +144,7 @@ public class MaidenheadGrid {
         }
         if (grid.length() == 6) {
             z = grid.toUpperCase().getBytes()[5] - 'A' + 1;
-            z = z * (1f / 18f);
+            z = z * GRID6_LAT;
         }
         lat2 = x + y + z - 90;
         if (lat2<-85.0){
@@ -164,7 +167,7 @@ public class MaidenheadGrid {
         }
         if (grid.length()>4){
             z=grid.toUpperCase().getBytes()[4]-'A';
-            z=z*2/18f;
+            z=z*GRID6_LON;
         }
         lng1=x+y+z-180;
 
@@ -185,7 +188,7 @@ public class MaidenheadGrid {
         y*=2;
         if (grid.length()==6){
             z=grid.toUpperCase().getBytes()[4]-'A'+1;
-            z=z*2/18f;
+            z=z*GRID6_LON;
         }
         lng2=x+y+z-180;
 
@@ -244,11 +247,11 @@ public class MaidenheadGrid {
         /*
          *现在是第三对两个小写字符：
          */
-        tempNumber = _long / 0.083333;            //步骤 2 的余数除以 0.083333
+        tempNumber = _long / GRID6_LON;            //步骤 2 的余数除以6位网格经度宽度
         index = (int) tempNumber;            // 小写字母的索引
         buff.append(String.valueOf((char) (index + 'a')));//设置第五个字符
 
-        tempNumber = _lat / 0.0416665;            // 步骤 2 的余数除以 0.0416665
+        tempNumber = _lat / GRID6_LAT;            // 步骤 2 的余数除以6位网格纬度宽度
         index = (int) tempNumber;            // 小写字母的索引
         buff.append(String.valueOf((char) (index + 'a')));//设置第五个字符
 
