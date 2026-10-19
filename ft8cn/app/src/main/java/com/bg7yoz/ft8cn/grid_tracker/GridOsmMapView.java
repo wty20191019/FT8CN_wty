@@ -105,7 +105,7 @@ public class GridOsmMapView {
                 , CustomZoomButtonsDisplay.VerticalPosition.BOTTOM);
         gridMapView.setTilesScaledToDpi(true);
 
-        gridMapView.setMaxZoomLevel(6.0);
+        gridMapView.setMaxZoomLevel(8.0);
         gridMapView.setMinZoomLevel(1.0);
         gridMapView.getController().setZoom(1.6);
 
