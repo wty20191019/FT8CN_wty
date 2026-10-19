@@ -689,9 +689,9 @@ public class GridOsmMapView {
     }
 
     public static class GridPolygon extends Polygon {
-        private static final float GLOW_OUTER_DP = 4f;//外层光晕宽度
+        private static final float GLOW_OUTER_DP = 6f;//外层光晕宽度
         private static final float GLOW_INNER_DP = 2f;//内层光晕宽度
-        private static final int GLOW_OUTER_ALPHA = 50;//外层光晕透明度
+        private static final int GLOW_OUTER_ALPHA = 70;//外层光晕透明度
         private static final int GLOW_INNER_ALPHA = 110;//内层光晕透明度
 
         public String grid;
@@ -715,8 +715,9 @@ public class GridOsmMapView {
             this.context = context;
 
             setTitle(grid);
+            //网格不画边框；保留透明描边宽度用于扩大点击范围
             setStrokeWidth(3f);
-            setStrokeColor(this.context.getColor(R.color.osm_grid_out_line_color));
+            setStrokeColor(Color.TRANSPARENT);
 
             //光晕宽度按屏幕密度换算，避免不同设备上粗细差异过大
             float density = context.getResources().getDisplayMetrics().density;
