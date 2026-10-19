@@ -67,6 +67,8 @@ public class GridTrackerMainActivity extends AppCompatActivity {
     private static final String DataConfigShowMode = "tracker_show_mode";
     private static final String DataConfigShowQsx = "tracker_show_qsx";
     private static final String DataConfigShowCQ = "tracker_show_cq";
+    //QSX只显示最近一分钟内解码到的网格
+    private static final long QSX_ACTIVE_TIME = 60 * 1000L;
 
     private MainViewModel mainViewModel;
     private ActivityGridTrackerMainBinding binding;
@@ -292,9 +294,18 @@ public class GridTrackerMainActivity extends AppCompatActivity {
 
         //gridOsmMapView.initMap(GeneralVariables.getMyMaidenhead4Grid(), true);
 
-        //把呼号与网格对应关系中的网格提取出来
-        for (Map.Entry<String, String> entry : GeneralVariables.callsignAndGrids.entrySet()) {
-            gridOsmMapView.upgradeGridMode(entry.getValue(), GridOsmMapView.GridMode.QSX);
+        //只把最近一分钟内解码到的网格作为QSX，避免历史呼号被全部显示成QSX
+        long qsxNow = System.currentTimeMillis();
+        ArrayList<Ft8Message> recentMessages;
+        synchronized (mainViewModel.ft8Messages) {
+            recentMessages = new ArrayList<>(mainViewModel.ft8Messages);
+        }
+        for (Ft8Message msg : recentMessages) {
+            if (msg.utcTime <= 0 || qsxNow - msg.utcTime > QSX_ACTIVE_TIME) continue;
+            String grid = msg.getMaidenheadGrid(mainViewModel.databaseOpr);
+            if (grid != null && grid.length() >= 4) {
+                gridOsmMapView.upgradeGridMode(grid, GridOsmMapView.GridMode.QSX);
+            }
         }
 
         //观察呼号与网格的对应关系表的变化，如果有新增的，就添加

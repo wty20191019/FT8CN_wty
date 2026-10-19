@@ -571,9 +571,23 @@ public class GeneralVariables {
      * @param grid     网格
      */
     public static void addCallsignAndGrid(String callsign, String grid) {
-        if (grid.length() >= 4) {
+        addCallsignAndGrid(callsign, grid, true);
+    }
+
+    /**
+     * 只写入呼号-网格对应表，不触发新网格通知。
+     * 用于加载历史数据，避免历史网格被地图当成QSX显示。
+     */
+    public static void addCallsignAndGridSilent(String callsign, String grid) {
+        addCallsignAndGrid(callsign, grid, false);
+    }
+
+    private static void addCallsignAndGrid(String callsign, String grid, boolean notify) {
+        if (grid != null && grid.length() >= 4) {
             callsignAndGrids.put(callsign, grid);
-            mutableNewGrid.postValue(grid);
+            if (notify) {
+                mutableNewGrid.postValue(grid);
+            }
         }
     }
 

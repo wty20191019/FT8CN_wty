@@ -1697,7 +1697,7 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                     "order by ID ";
             Cursor cursor = db.rawQuery(querySQL, null);
             while (cursor.moveToNext()) {
-                GeneralVariables.addCallsignAndGrid(cursor.getString(cursor.getColumnIndex("callsign"))
+                GeneralVariables.addCallsignAndGridSilent(cursor.getString(cursor.getColumnIndex("callsign"))
                         , cursor.getString(cursor.getColumnIndex("grid")));
 
             }

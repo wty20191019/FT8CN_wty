@@ -280,9 +280,11 @@ public class GridOsmMapView {
      * @return 图层
      */
     public synchronized GridPolygon getGridPolygon(String grid) {
+        if (grid == null) return null;
+        String key = grid.toUpperCase();
         synchronized (gridPolygons) {
             for (GridPolygon polygon : gridPolygons) {
-                if (polygon.grid.equals(grid)) return polygon;
+                if (polygon.grid.equalsIgnoreCase(key)) return polygon;
             }
         }
         return null;
@@ -362,7 +364,28 @@ public class GridOsmMapView {
      * @param gridMode 模式
      * @return 发现
      */
-    public boolean upgradeGridMode(String grid, GridMode gridMode) {
+    public synchronized boolean upgradeGridMode(String grid, GridMode gridMode) {
+        if (grid == null || grid.length() < 2) return false;
+        grid = grid.toUpperCase();
+
+        //6位网格的QSO/QSL同时升级其4位父网格，避免父网格仍显示为QSX
+        if ((gridMode == GridMode.QSO || gridMode == GridMode.QSL) && grid.length() > 4) {
+            GridPolygon parent = getGridPolygon(grid.substring(0, 4));
+            if (parent != null) parent.upgradeGridMode(gridMode);
+        }
+
+        //4位QSX如果内部已有6位QSO/QSL，则直接使用更高的状态
+        if (gridMode == GridMode.QSX && grid.length() == 4) {
+            synchronized (gridPolygons) {
+                for (GridPolygon polygon : gridPolygons) {
+                    if (polygon.grid.length() > 4 && polygon.grid.startsWith(grid)
+                            && polygon.gridMode.ordinal() > gridMode.ordinal()) {
+                        gridMode = polygon.gridMode;
+                    }
+                }
+            }
+        }
+
         GridPolygon polygon = getGridPolygon(grid);
         if (polygon != null) {
             polygon.upgradeGridMode(gridMode);
@@ -381,8 +404,10 @@ public class GridOsmMapView {
      * @return 返回一个网格图层对象
      */
     public synchronized GridPolygon addGridPolygon(String grid, GridMode gridMode) {
+        if (grid == null) return null;
         if (gridMapView == null) return null;
         if (gridMapView.getRepository()==null) return null;
+        grid = grid.toUpperCase();
         try {//当日志量过多时，会出现闪退的问题，在此处做一个异常捕获，防止闪退
 
             GridPolygon polygon = new GridPolygon(context, gridMapView, grid, gridMode);
