@@ -699,7 +699,7 @@ public class GridOsmMapView {
 
             setTitle(grid);
             setStrokeWidth(3f);
-            setStrokeColor(this.context.getColor(R.color.osm_grid_out_line_color));
+            //边框颜色在 updateGridMode() 中按网格状态设置
 
             updateGridMode();
 
@@ -712,20 +712,26 @@ public class GridOsmMapView {
 
         public synchronized void updateGridMode() {
             synchronized (this) {//防止闪退
+                int borderColor = Color.WHITE;
                 switch (gridMode) {
                     case QSL:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsl_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qsl_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsl_color));
                         break;
                     case QSO:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qso_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qso_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qso_color));
                         break;
                     case QSX:
                         this.mFillPaint.setColor(this.context.getColor(R.color.tracker_sample_qsx_color));
+                        borderColor = this.context.getColor(R.color.tracker_grid_border_qsx_color);
                         //setFillColor(this.context.getColor(R.color.tracker_sample_qsx_color));
                         break;
                 }
+                //用状态亮色替换原来的白色边框
+                setStrokeColor(borderColor);
             }
         }
 
