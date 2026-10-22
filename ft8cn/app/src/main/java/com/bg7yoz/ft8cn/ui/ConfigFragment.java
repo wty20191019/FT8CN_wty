@@ -32,6 +32,7 @@ import com.bg7yoz.ft8cn.database.ControlMode;
 import com.bg7yoz.ft8cn.database.OperationBand;
 import com.bg7yoz.ft8cn.database.RigNameList;
 import com.bg7yoz.ft8cn.databinding.FragmentConfigBinding;
+import com.bg7yoz.ft8cn.ft8listener.DecodeMode;
 import com.bg7yoz.ft8cn.ft8signal.FT8Package;
 import com.bg7yoz.ft8cn.log.ThirdPartyService;
 import com.bg7yoz.ft8cn.maidenhead.MaidenheadGrid;
@@ -1116,20 +1117,41 @@ public class ConfigFragment extends Fragment {
 
     private void setDecodeMode() {
         binding.decodeModeRadioGroup.clearCheck();
-        binding.fastDecodeRadioButton.setChecked(!GeneralVariables.deepDecodeMode);
-        binding.deepDecodeRadioButton.setChecked(GeneralVariables.deepDecodeMode);
+        if (GeneralVariables.decodeMode == DecodeMode.PARALLEL) {
+            binding.parallelDecodeRadioButton.setChecked(true);
+        } else if (GeneralVariables.deepDecodeMode) {
+            binding.deepDecodeRadioButton.setChecked(true);
+        } else {
+            binding.fastDecodeRadioButton.setChecked(true);
+        }
 
         View.OnClickListener listener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 int buttonId = binding.decodeModeRadioGroup.getCheckedRadioButtonId();
-                GeneralVariables.deepDecodeMode= buttonId ==binding.deepDecodeRadioButton.getId();
-                writeConfig("deepMode", GeneralVariables.deepDecodeMode? "1" : "0");
+                if (buttonId == binding.parallelDecodeRadioButton.getId()) {
+                    //并行模式：旧 deepDecodeMode 置 true，仅作为新核心失败时的旧深度回退标志
+                    GeneralVariables.decodeMode = DecodeMode.PARALLEL;
+                    GeneralVariables.deepDecodeMode = true;
+                    writeConfig("decodeMode", "2");
+                    writeConfig("deepMode", "1");
+                } else if (buttonId == binding.deepDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = DecodeMode.DEEP;
+                    GeneralVariables.deepDecodeMode = true;
+                    writeConfig("decodeMode", "1");
+                    writeConfig("deepMode", "1");
+                } else {
+                    GeneralVariables.decodeMode = DecodeMode.FAST;
+                    GeneralVariables.deepDecodeMode = false;
+                    writeConfig("decodeMode", "0");
+                    writeConfig("deepMode", "0");
+                }
             }
         };
 
         binding.fastDecodeRadioButton.setOnClickListener(listener);
         binding.deepDecodeRadioButton.setOnClickListener(listener);
+        binding.parallelDecodeRadioButton.setOnClickListener(listener);
 
     }
 
@@ -1573,6 +1595,14 @@ public class ConfigFragment extends Fragment {
                 new HelpDialog(requireContext(),requireActivity()
                         ,GeneralVariables.getStringFromResource(R.string.deep_mode_help)
                         ,true).show();
+            }
+        });
+
+        //并行解码参数
+        binding.parallelSettingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                new ParallelDecodeDialog(requireContext(), mainViewModel.databaseOpr).show();
             }
         });
 

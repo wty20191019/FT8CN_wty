@@ -488,6 +488,15 @@
     <string name="decode_mode_text">Decode mode</string>
     <string name="fast_mode">Fast decode</string>
     <string name="deep_mode">Deep decode</string>
+    <string name="parallel_mode">Parallel decode</string>
+    <string name="parallel_settings">Parallel decode settings</string>
+    <string name="parallel_slices">Slices</string>
+    <string name="parallel_threads">Threads</string>
+    <string name="parallel_timeout">Time limit</string>
+    <string name="parallel_auto">Auto</string>
+    <string name="parallel_seconds">%1$d s</string>
+    <string name="parallel_confirm">OK</string>
+    <string name="parallel_cancel">Cancel</string>
     <string name="export_null">Export from WebUI via web browser on another device under the same LAN \n Please connect to a valid Wi-Fi</string>
     <string name="null_task_html">Task not exist!</string>
     <string name="log_importing_html">Importing...</string>

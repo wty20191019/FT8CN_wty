@@ -479,6 +479,15 @@
     <string name="decode_mode_text">解码模式</string>
     <string name="fast_mode">快速解码</string>
     <string name="deep_mode">多次解码</string>
+    <string name="parallel_mode">并行解码</string>
+    <string name="parallel_settings">并行解码参数</string>
+    <string name="parallel_slices">切片数</string>
+    <string name="parallel_threads">线程数</string>
+    <string name="parallel_timeout">时间上限</string>
+    <string name="parallel_auto">自动</string>
+    <string name="parallel_seconds">%1$d 秒</string>
+    <string name="parallel_confirm">确定</string>
+    <string name="parallel_cancel">取消</string>
     <string name="export_null">请在与本机相同的局域网下，用其它设备的网页浏览器从后台导出。\n在浏览器的地址栏中输入如下内容：\n无法获取合适的IP地址，请连接到一个有效的Wifi。</string>
     <string name="deep_mode_help">decode_help.txt</string>
     <string name="null_task_html">任务不存在！</string>

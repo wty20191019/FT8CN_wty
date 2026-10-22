@@ -1600,7 +1600,7 @@
                             android:layout_marginStart="8dp"
                             android:orientation="horizontal"
                             app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintEnd_toStartOf="@+id/decodeModeHelpButton"
+                            app:layout_constraintEnd_toStartOf="@+id/parallelSettingsButton"
                             app:layout_constraintStart_toEndOf="@+id/decodeModeText"
                             app:layout_constraintTop_toTopOf="parent">
 
@@ -1622,10 +1622,29 @@
                                 android:textColor="@color/text_view_color"
                                 android:textSize="12sp" />
 
-
+                            <RadioButton
+                                android:id="@+id/parallelDecodeRadioButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="?attr/colorPrimary"
+                                android:text="@string/parallel_mode"
+                                android:textColor="@color/text_view_color"
+                                android:textSize="12sp" />
 
                     </com.bg7yoz.ft8cn.ui.RadioGroupFt8cn>
 
+
+                        <ImageButton
+                            android:id="@+id/parallelSettingsButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/imagebutton_transparent_style"
+                            android:contentDescription="@string/parallel_settings"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toStartOf="@+id/decodeModeHelpButton"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:srcCompat="@drawable/ic_baseline_settings_24"
+                            tools:ignore="TouchTargetSizeCheck" />
 
                         <ImageButton
                             android:id="@+id/decodeModeHelpButton"
