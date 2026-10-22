@@ -45,7 +45,7 @@ public class GeneralVariables {
     public static int decodeMode = DecodeMode.FAST;//0=快速，1=深度，2=并行（新增）
 
     //并行解码参数（仅 decodeMode=PARALLEL 时生效）
-    public static int parallelSlices = 4;//固定切片数
+    public static int parallelSlices = 6;//固定切片数（基准测试 6 片/4 线程较均衡）
     public static int parallelThreads = 0;//0=自动
     public static int parallelTimeout = 7000;//毫秒，含快速首轮
     public static float parallelFreqLow = 0f;//Hz

@@ -24,9 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 真实 WAV 基准：旧快速 vs 新核心快速/并行，用于选择切片数、线程数默认值。
- * 结果只写 logcat，不做严格断言。
- */
+ * 真实 WAV 基准：旧快�?vs 新核心快�?并行，用于选择切片数、线程数默认值�? * 结果只写 logcat，不做严格断言�? */
 @RunWith(AndroidJUnit4.class)
 public class RealAudioBenchmarkTest {
     private static final String TAG = "RealAudioBenchmark";
@@ -58,7 +56,7 @@ public class RealAudioBenchmarkTest {
             Log.i(TAG, String.format("%s: old=%d/%dms new25=%d/%dms new200=%d/%dms",
                     name, unique(oldMessages), tOld, unique(new25), tNew25, unique(new200), tNew200));
 
-            int[] slices = {2, 4, 6};
+            int[] slices = {6, 8};
             int[] threads = {0, 4};
             for (int s : slices) {
                 for (int th : threads) {
