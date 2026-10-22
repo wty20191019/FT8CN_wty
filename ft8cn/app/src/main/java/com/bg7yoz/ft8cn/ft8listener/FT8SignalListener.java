@@ -121,7 +121,15 @@ public class FT8SignalListener {
                 @Override
                 public void run() {
                     if (!parallelDecodeEngine.decode(utc, voiceData)) {
-                        Log.e(TAG, "并行解码失败，本周期未回退旧模式");
+                        Log.e(TAG, "并行解码失败，回退到旧深度解码");
+                        int previousMode = GeneralVariables.decodeMode;
+                        GeneralVariables.decodeMode = DecodeMode.DEEP;
+                        try {
+                            //递归进入本方法的旧分支；旧方法体没有改动
+                            decodeFt8(utc, voiceData);
+                        } finally {
+                            GeneralVariables.decodeMode = previousMode;
+                        }
                     }
                 }
             }).start();
