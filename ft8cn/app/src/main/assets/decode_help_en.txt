@@ -1,4 +1,7 @@
 Decode mode:
 Fast decode: Default mode, one decoding pass on received audio.
-Deep decode: Recursive decoding that process received audio in multiple passes .
-* Note: Deep decoding requires longer decoding time and more battery consumption. 
+Deep decode: Recursive decoding that process received audio in multiple passes.
+wsjtx Normal: Decode one pass with the WSJT-X algorithm library (mfsk-core).
+wsjtx Deep: Same as wsjtx Normal, but enables the full LLR/BP/OSD fallback and a looser acceptance threshold; more weak signals, longer decoding.
+* Note: Deep decoding and wsjtx Deep require longer decoding time and more battery consumption.
+* Note: wsjtx modes require arm64-v8a or x86_64 devices; other devices fall back to the original decoder automatically.

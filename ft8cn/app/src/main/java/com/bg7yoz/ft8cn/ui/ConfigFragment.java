@@ -1116,20 +1116,46 @@ public class ConfigFragment extends Fragment {
 
     private void setDecodeMode() {
         binding.decodeModeRadioGroup.clearCheck();
-        binding.fastDecodeRadioButton.setChecked(!GeneralVariables.deepDecodeMode);
-        binding.deepDecodeRadioButton.setChecked(GeneralVariables.deepDecodeMode);
+        switch (GeneralVariables.decodeMode) {
+            case GeneralVariables.DECODE_MODE_DEEP:
+                binding.deepDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_WSJTX:
+                binding.wsjtxDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_WSJTX_DEEP:
+                binding.wsjtxDeepDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_FAST:
+            default:
+                binding.fastDecodeRadioButton.setChecked(true);
+                break;
+        }
 
         View.OnClickListener listener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                int buttonId = binding.decodeModeRadioGroup.getCheckedRadioButtonId();
-                GeneralVariables.deepDecodeMode= buttonId ==binding.deepDecodeRadioButton.getId();
-                writeConfig("deepMode", GeneralVariables.deepDecodeMode? "1" : "0");
+                int buttonId = view.getId();
+                if (buttonId == binding.deepDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_DEEP;
+                } else if (buttonId == binding.wsjtxDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX;
+                } else if (buttonId == binding.wsjtxDeepDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_DEEP;
+                } else {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_FAST;
+                }
+                writeConfig("decodeMode", String.valueOf(GeneralVariables.decodeMode));
+                //同时写入旧键，方便旧版本读取（旧版本只认识快速/多次）
+                writeConfig("deepMode"
+                        , GeneralVariables.decodeMode == GeneralVariables.DECODE_MODE_DEEP ? "1" : "0");
             }
         };
 
         binding.fastDecodeRadioButton.setOnClickListener(listener);
         binding.deepDecodeRadioButton.setOnClickListener(listener);
+        binding.wsjtxDecodeRadioButton.setOnClickListener(listener);
+        binding.wsjtxDeepDecodeRadioButton.setOnClickListener(listener);
 
     }
 
