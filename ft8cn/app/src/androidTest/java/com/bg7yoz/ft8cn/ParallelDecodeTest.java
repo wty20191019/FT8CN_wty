@@ -74,6 +74,40 @@ public class ParallelDecodeTest {
     }
 
     @Test
+    public void decodeNonStandardCallsignDoesNotCrash() {
+        Ft8Message tx = new Ft8Message("CQ", "BG7YOZ/P", "OL32");
+        tx.i3 = 4;
+        tx.n3 = 0;
+        float[] audio = GenerateFT8.generateFt8(tx, 800f, FT8Common.SAMPLE_RATE);
+        assertNotNull(audio);
+
+        long decoder = Ft8LibJni.nativeCreate(FT8Common.SAMPLE_RATE, audio.length,
+                0f, 5950f, 200, 25);
+        assertNotEquals(0, decoder);
+        long worker = 0;
+        try {
+            Ft8LibJni.nativePress(decoder, audio);
+            worker = Ft8LibJni.nativeCreateWorker(decoder);
+            int count = Ft8LibJni.nativeFindRange(worker, 0, Integer.MAX_VALUE);
+            boolean decoded = false;
+            for (int i = 0; i < count; i++) {
+                if (!Ft8LibJni.nativeDecode(worker, i, 25)) continue;
+                Ft8Message candidate = new Ft8Message(FT8Common.FT8_MODE);
+                Ft8LibJni.nativeFillMessage(worker, candidate);
+                if (candidate.isValid && candidate.getMessageText() != null
+                        && candidate.getMessageText().length() > 0) {
+                    decoded = true;
+                    break;
+                }
+            }
+            assertTrue("非标准呼号消息未解出", decoded);
+        } finally {
+            if (worker != 0) Ft8LibJni.nativeFreeWorker(worker);
+            Ft8LibJni.nativeFree(decoder);
+        }
+    }
+
+    @Test
     public void engineDecodesAndCallsBack() {
         Ft8Message tx = new Ft8Message("CQ", "BG7YOZ", "OL32");
         tx.i3 = 1;
