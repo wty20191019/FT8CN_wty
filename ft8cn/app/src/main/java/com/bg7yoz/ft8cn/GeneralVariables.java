@@ -43,7 +43,7 @@ public class GeneralVariables {
     //解码挡位：0=快速解码，1=多次解码，2=wsjtx普通，3=wsjtx深度
     public static final int DECODE_MODE_FAST = 0;//快速解码（原FT8CN解码器，一次解码）
     public static final int DECODE_MODE_DEEP = 1;//多次解码（原FT8CN解码器，多轮迭代）
-    public static final int DECODE_MODE_WSJTX = 2;//wsjtx普通（mfsk-core，默认深度）
+    public static final int DECODE_MODE_WSJTX = 2;//wsjtx普通（mfsk-core，默认参数）
     public static final int DECODE_MODE_WSJTX_DEEP = 3;//wsjtx深度（mfsk-core，BP_ALL_OSD + DEEP门限）
     public static int decodeMode = DECODE_MODE_FAST;//当前解码挡位
 
