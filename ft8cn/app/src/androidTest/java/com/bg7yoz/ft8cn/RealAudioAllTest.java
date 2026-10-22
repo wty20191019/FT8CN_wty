@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.bg7yoz.ft8cn.ft8listener.FT8SignalListener;
 import com.bg7yoz.ft8cn.ft8listener.Ft8LibJni;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -24,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 全量真实 WAV：旧快�?vs 新核心快速（25 次迭代）�? * 统计召回率、SNR 偏差，作为并行模式的上线前基线�? */
+ * 全量真实 WAV：旧快�?vs 新核心快速（25 次迭代）�? * 统计召回率、SNR 偏差，作为并行模式的上线前基线�? */
 @RunWith(AndroidJUnit4.class)
 public class RealAudioAllTest {
     private static final String TAG = "RealAudioAll";
@@ -33,9 +34,9 @@ public class RealAudioAllTest {
     public void compareAll() throws Exception {
         File dir = new File(InstrumentationRegistry.getInstrumentation()
                 .getTargetContext().getCacheDir(), "ft8test");
-        assertTrue("缺少测试目录", dir.isDirectory());
+        Assume.assumeTrue("缺少真实 WAV 测试目录: " + dir, dir.isDirectory());
         File[] files = dir.listFiles((d, n) -> n.endsWith(".wav"));
-        assertTrue("没有 WAV", files != null && files.length > 0);
+        Assume.assumeTrue("没有 WAV", files != null && files.length > 0);
 
         FT8SignalListener old = new FT8SignalListener(null, null);
         int filesCompared = 0;
@@ -44,7 +45,7 @@ public class RealAudioAllTest {
         int missingTotal = 0, extraTotal = 0;
 
         for (File f : files) {
-            if (f.length() == 192044 && !f.getName().contains("12k")) continue; // �?12k 测试文件
+            if (f.length() == 192044 && !f.getName().contains("12k")) continue; // �?12k 测试文件
             float[] audio = readWav(f);
             List<Ft8Message> oldList = decodeOldFast(old, audio);
             List<Ft8Message> newList = decodeNewFast(audio, 500, 200);

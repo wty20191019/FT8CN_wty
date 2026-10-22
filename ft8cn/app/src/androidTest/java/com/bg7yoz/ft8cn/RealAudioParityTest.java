@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.bg7yoz.ft8cn.ft8listener.FT8SignalListener;
 import com.bg7yoz.ft8cn.ft8listener.Ft8LibJni;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -43,7 +44,7 @@ public class RealAudioParityTest {
     public void compareOldFastAndNewFast() throws Exception {
         File dir = new File(InstrumentationRegistry.getInstrumentation()
                 .getTargetContext().getCacheDir(), "ft8test");
-        assertTrue("缺少测试目录: " + dir, dir.isDirectory());
+        Assume.assumeTrue("缺少真实 WAV 测试目录: " + dir, dir.isDirectory());
 
         FT8SignalListener old = new FT8SignalListener(null, null);
         for (String name : FILES) {
