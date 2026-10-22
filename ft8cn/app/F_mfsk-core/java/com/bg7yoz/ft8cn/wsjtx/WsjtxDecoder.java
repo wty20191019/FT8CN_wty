@@ -42,10 +42,37 @@ public final class WsjtxDecoder implements AutoCloseable {
      * @return 解码行；没有结果时返回长度为 0 的数组
      */
     public Row[] decode(float[] audio, int sampleRate, boolean deep) {
+        return decode(audio, sampleRate, deep, 0.0f, 0.0f);
+    }
+
+    /**
+     * 解码一个时隙，只在指定频段内搜索。
+     *
+     * <p>用于频谱分段并行：每段传入自己的 [freqMin, freqMax]，段间留重叠。
+     * 传 0, 0 表示使用模式默认的完整搜索范围。</p>
+     *
+     * @param audio      12 kHz、float、范围约 -1.0 ~ 1.0 的音频
+     * @param sampleRate 采样率，FT8CN 固定 12000
+     * @param deep       true = BP_ALL_OSD + DEEP 门限
+     * @param freqMin    搜索下限（Hz），&lt;= 0 表示不限制
+     * @param freqMax    搜索上限（Hz），必须大于 freqMin 才生效
+     * @return 解码行；没有结果时返回长度为 0 的数组
+     */
+    public Row[] decode(float[] audio, int sampleRate, boolean deep,
+                        float freqMin, float freqMax) {
         if (handle == 0L) {
             throw new IllegalStateException("decoder is closed");
         }
-        String[] lines = nativeDecode(handle, audio, sampleRate, deep);
+        String[] lines = nativeDecodeBand(handle, audio, sampleRate, deep,
+                freqMin, freqMax);
+        return toRows(lines);
+    }
+
+    public Row[] decode(float[] audio, int sampleRate) {
+        return decode(audio, sampleRate, false);
+    }
+
+    private static Row[] toRows(String[] lines) {
         if (lines == null || lines.length == 0) {
             return new Row[0];
         }
@@ -60,14 +87,16 @@ public final class WsjtxDecoder implements AutoCloseable {
         return rows.toArray(new Row[0]);
     }
 
-    public Row[] decode(float[] audio, int sampleRate) {
-        return decode(audio, sampleRate, false);
-    }
-
     /** 一次性便捷方法：内部 open/decode/close，适合测试或低频调用。 */
     public static Row[] decodeOnce(float[] audio, int sampleRate, boolean deep) {
+        return decodeOnce(audio, sampleRate, deep, 0.0f, 0.0f);
+    }
+
+    /** 一次性便捷方法，只解码指定频段。 */
+    public static Row[] decodeOnce(float[] audio, int sampleRate, boolean deep,
+                                   float freqMin, float freqMax) {
         try (WsjtxDecoder decoder = new WsjtxDecoder(MODE_FT8)) {
-            return decoder.decode(audio, sampleRate, deep);
+            return decoder.decode(audio, sampleRate, deep, freqMin, freqMax);
         }
     }
 
@@ -150,6 +179,10 @@ public final class WsjtxDecoder implements AutoCloseable {
 
     private static native String[] nativeDecode(long handle, float[] audio,
                                                 int sampleRate, boolean deep);
+
+    private static native String[] nativeDecodeBand(long handle, float[] audio,
+                                                    int sampleRate, boolean deep,
+                                                    float freqMin, float freqMax);
 
     private static native void nativeClose(long handle);
 

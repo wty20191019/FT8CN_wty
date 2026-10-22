@@ -20,6 +20,7 @@ import com.bg7yoz.ft8cn.timer.UtcTimer;
 import com.bg7yoz.ft8cn.wave.OnGetVoiceDataDone;
 import com.bg7yoz.ft8cn.wave.WaveFileReader;
 import com.bg7yoz.ft8cn.wave.WaveFileWriter;
+import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ public class FT8SignalListener {
 
     //wsjtx解码库是否可用。armeabi-v7a/x86没有对应的so，第一次失败后不再尝试
     private volatile boolean wsjtxAvailable = true;
+    //频谱分段并行解码器，首次使用 wsjtx 多核挡位时创建
+    private WsjtxBandDecoder wsjtxBandDecoder;
 
 
     static {
@@ -135,8 +138,14 @@ public class FT8SignalListener {
 
                 //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
                 if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
-                    handled = decodeByWsjtx(utc, voiceData
-                            , mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP, time) != null;
+                    boolean deep = GeneralVariables.isWsjtxDeepMode();
+                    if (GeneralVariables.isWsjtxParallelMode()) {
+                        handled = decodeByWsjtxParallel(utc, voiceData, deep, time) != null;
+                    }
+                    //多核分段失败时退回单实例 wsjtx
+                    if (!handled) {
+                        handled = decodeByWsjtx(utc, voiceData, deep, time) != null;
+                    }
                     if (!handled) {
                         //当前设备ABI没有对应so（如armeabi-v7a/x86），后续直接回退
                         wsjtxAvailable = false;
@@ -146,7 +155,8 @@ public class FT8SignalListener {
                 if (!handled) {
                     //wsjtx普通回退到快速解码，wsjtx深度回退到多次解码
                     boolean deep = mode == GeneralVariables.DECODE_MODE_DEEP
-                            || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP;
+                            || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP
+                            || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL;
                     decodeByLegacy(utc, voiceData, deep, time);
                 }
 
@@ -156,7 +166,7 @@ public class FT8SignalListener {
     }
 
     /**
-     * 使用mfsk-core（WSJT-X算法）解码一个时隙。
+     * 使用 mfsk-core（WSJT-X 算法）解码一个时隙。
      *
      * @param utc       当前时隙的UTC时间
      * @param voiceData 12kHz、float音频
@@ -166,26 +176,58 @@ public class FT8SignalListener {
      */
     ArrayList<Ft8Message> decodeByWsjtx(long utc, float[] voiceData, boolean deep, long startTime) {
         try {
-            ArrayList<Ft8Message> allMsg = new ArrayList<>();
             WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
                     voiceData, FT8Common.SAMPLE_RATE, deep);
-            ArrayList<Ft8Message> msgs = toFt8Messages(rows, utc, deep);
-            addMsgToList(allMsg, msgs);
-            timeSec = System.currentTimeMillis() - startTime;
-            decodeTimeSec.postValue(timeSec);//解码耗时
-            if (onFt8Listen != null) {
-                //wsjtx一个时隙只解码一次，回调按普通解码处理，
-                //保证自动通联逻辑对wsjtx深度的结果也生效
-                onFt8Listen.afterDecode(utc, averageOffset(allMsg)
-                        , UtcTimer.sequential(utc), msgs, false);
-            }
-            Log.d(TAG, String.format("wsjtx解码完成，共%d条", allMsg.size()));
-            return allMsg;
+            return publishWsjtxRows(utc, rows, deep, startTime);
         } catch (Throwable e) {
             //UnsatisfiedLinkError、ExceptionInInitializerError等都从这里回退
             Log.e(TAG, "wsjtx解码不可用，回退到原解码器：" + e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * 使用频谱分段并行方式解码一个时隙（只用于 wsjtx 多核挡位）。
+     *
+     * @return 消息列表；返回null表示分段解码整体失败，应退回单实例 wsjtx
+     */
+    ArrayList<Ft8Message> decodeByWsjtxParallel(long utc, float[] voiceData,
+                                                boolean deep, long startTime) {
+        try {
+            WsjtxDecoder.Row[] rows = getWsjtxBandDecoder().decode(
+                    voiceData, FT8Common.SAMPLE_RATE, deep);
+            return publishWsjtxRows(utc, rows, deep, startTime);
+        } catch (Throwable e) {
+            Log.e(TAG, "wsjtx分段解码失败，回退到单实例：" + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private synchronized WsjtxBandDecoder getWsjtxBandDecoder() {
+        if (wsjtxBandDecoder == null) {
+            wsjtxBandDecoder = new WsjtxBandDecoder();
+        }
+        return wsjtxBandDecoder;
+    }
+
+    /**
+     * 把 wsjtx 的解码行转成消息、更新耗时并触发回调。
+     */
+    private ArrayList<Ft8Message> publishWsjtxRows(long utc, WsjtxDecoder.Row[] rows,
+                                                   boolean deep, long startTime) {
+        ArrayList<Ft8Message> allMsg = new ArrayList<>();
+        ArrayList<Ft8Message> msgs = toFt8Messages(rows, utc, deep);
+        addMsgToList(allMsg, msgs);
+        timeSec = System.currentTimeMillis() - startTime;
+        decodeTimeSec.postValue(timeSec);//解码耗时
+        if (onFt8Listen != null) {
+            //wsjtx一个时隙只解码一次，回调按普通解码处理，
+            //保证自动通联逻辑对wsjtx深度的结果也生效
+            onFt8Listen.afterDecode(utc, averageOffset(allMsg)
+                    , UtcTimer.sequential(utc), msgs, false);
+        }
+        Log.d(TAG, String.format("wsjtx解码完成，共%d条", allMsg.size()));
+        return allMsg;
     }
 
     /**

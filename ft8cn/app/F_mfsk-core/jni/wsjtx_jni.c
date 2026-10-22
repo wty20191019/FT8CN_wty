@@ -110,12 +110,10 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeOpen(JNIEnv *env, jclass cls, jin
     return (jlong)(intptr_t)h;
 }
 
-JNIEXPORT jobjectArray JNICALL
-Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecode(
-        JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
-        jint sample_rate, jboolean deep) {
-    (void)cls;
-
+// 共用实现。freq_min/freq_max 有效时只在该频段内搜索；否则沿用模式默认范围。
+static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
+                                jint sample_rate, jboolean deep,
+                                jfloat freq_min, jfloat freq_max) {
     wsjtx_handle *h = (wsjtx_handle *)(intptr_t)handle;
     if (h == NULL || h->session == NULL) {
         throw_illegal_state(env, "decoder is closed");
@@ -152,6 +150,12 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecode(
         // 因此这里不需要 FT8CN 原来的 ReBuildSignal 循环。
         params.depth = MFSK_DECODE_DEPTH_BP_ALL_OSD;
         params.strictness = MFSK_STRICTNESS_DEEP;
+    }
+
+    // 频谱分段：只在该频段内做候选搜索和解码。
+    if (freq_min > 0.0f && freq_max > freq_min) {
+        params.freq_min_hz = freq_min;
+        params.freq_max_hz = freq_max;
     }
 
     size_t cap = 256;
@@ -194,6 +198,22 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecode(
     jobjectArray result = rows_to_java(env, rows, out_len);
     free(rows);
     return result;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecode(
+        JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
+        jint sample_rate, jboolean deep) {
+    (void)cls;
+    return decode_impl(env, handle, audio, sample_rate, deep, 0.0f, 0.0f);
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecodeBand(
+        JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
+        jint sample_rate, jboolean deep, jfloat freq_min, jfloat freq_max) {
+    (void)cls;
+    return decode_impl(env, handle, audio, sample_rate, deep, freq_min, freq_max);
 }
 
 JNIEXPORT void JNICALL
