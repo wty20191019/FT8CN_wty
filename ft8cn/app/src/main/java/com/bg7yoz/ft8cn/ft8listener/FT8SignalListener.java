@@ -37,6 +37,9 @@ public class FT8SignalListener {
 
     private DatabaseOpr db;
 
+    //并行解码（D 轨）编排器；旧快速/深度模式不使用
+    private final ParallelDecodeEngine parallelDecodeEngine;
+
     private final A91List a91List = new A91List();//a91列表
 
 
@@ -52,6 +55,7 @@ public class FT8SignalListener {
         //this.hamRecorder = hamRecorder;
         this.onFt8Listen = onFt8Listen;
         this.db = db;
+        this.parallelDecodeEngine = new ParallelDecodeEngine(onFt8Listen, decodeTimeSec);
 
         //创建动作触发器，与UTC时间同步，以15秒一个周期，DoOnSecTimer是在周期起始时触发的事件。150是15秒
         utcTimer = new UtcTimer(FT8Common.FT8_SLOT_TIME_M, false, new OnUtcTimer() {
@@ -110,6 +114,19 @@ public class FT8SignalListener {
     }
 
     public void decodeFt8(long utc, float[] voiceData) {
+
+        //并行解码模式：只在这里分发，下面的旧快速/深度代码原样保留
+        if (GeneralVariables.decodeMode == DecodeMode.PARALLEL) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    if (!parallelDecodeEngine.decode(utc, voiceData)) {
+                        Log.e(TAG, "并行解码失败，本周期未回退旧模式");
+                    }
+                }
+            }).start();
+            return;
+        }
 
         //此处是测试用代码-------------------------
 //        String fileName = getCacheFileName("test_01.wav");

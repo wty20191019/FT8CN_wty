@@ -87,6 +87,17 @@ public class Ft8Message {
 
     public boolean isWeakSignal=false;
 
+    /**
+     * 并行解码核心（原版 ft8_lib）给出的完整消息文本。
+     * 旧快速/深度模式为 null，仍走原来的 getMessageText() 逻辑。
+     */
+    public String decodedText = null;
+
+    /**
+     * 并行解码核心给出的 77 bit payload（10 字节），用于深解抵消。
+     * 旧快速/深度模式为 null。
+     */
+    public byte[] payload = null;
 
 
 
@@ -193,6 +204,10 @@ public class Ft8Message {
             arrl_rac = message.arrl_rac;
             dx_call_to2 = message.dx_call_to2;
 
+            //并行解码核心附加字段；旧模式为 null
+            decodedText = message.decodedText;
+            payload = message.payload;
+            isWeakSignal = message.isWeakSignal;
 
             //Log.d(TAG, String.format("i3:%d,n3:%d,From:%s,To:%s", i3, n3, getCallsignFrom(), getCallsignTo()));
         }
@@ -223,6 +238,10 @@ public class Ft8Message {
      */
     @SuppressLint("DefaultLocale")
     public String getMessageText() {
+        //并行解码核心已经给出完整文本；旧快速/深度模式此字段为 null
+        if (decodedText != null) {
+            return decodedText;
+        }
 
         if (i3 == 0 && n3 == 0) {//说明是自由文本
             if (extraInfo.length() < 13) {

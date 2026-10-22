@@ -14,6 +14,7 @@ import com.bg7yoz.ft8cn.callsign.CallsignDatabase;
 import com.bg7yoz.ft8cn.connector.ConnectMode;
 import com.bg7yoz.ft8cn.database.ControlMode;
 import com.bg7yoz.ft8cn.database.DatabaseOpr;
+import com.bg7yoz.ft8cn.ft8listener.DecodeMode;
 import com.bg7yoz.ft8cn.ft8transmit.QslRecordList;
 import com.bg7yoz.ft8cn.html.HtmlContext;
 import com.bg7yoz.ft8cn.rigs.BaseRigOperation;
@@ -40,7 +41,15 @@ public class GeneralVariables {
     public static boolean enableCloudlog = false;//是否启用Cloudlog自动同步
     public static boolean enableQRZ = false;//是否启用qrz自动同步
 
-    public static boolean deepDecodeMode = false;//是否开启深度解码
+    public static boolean deepDecodeMode = false;//是否开启深度解码（旧模式，保持不变）
+    public static int decodeMode = DecodeMode.FAST;//0=快速，1=深度，2=并行（新增）
+
+    //并行解码参数（仅 decodeMode=PARALLEL 时生效）
+    public static int parallelSlices = 4;//固定切片数
+    public static int parallelThreads = 0;//0=自动
+    public static int parallelTimeout = 7000;//毫秒，含快速首轮
+    public static float parallelFreqLow = 0f;//Hz
+    public static float parallelFreqHigh = 5950f;//Hz，避免越界到 FFT 最后一个 bin
 
     public static boolean audioOutput32Bit = true;//音频输出类型true=float,false=int16
     public static int audioSampleRate = 12000;//发射音频的采样率

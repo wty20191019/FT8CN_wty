@@ -2059,6 +2059,7 @@ public class DatabaseOpr extends SQLiteOpenHelper {
 
             String querySQL = "select keyName,Value from config ";
             Cursor cursor = db.rawQuery(querySQL, null);
+            boolean hasDecodeMode = false;
             while (cursor.moveToNext()) {
                 @SuppressLint("Range")
                 //String result = "";
@@ -2186,6 +2187,36 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                 if (name.equalsIgnoreCase("deepMode")) {//是不是深度解码模式
                     GeneralVariables.deepDecodeMode =result.equals("1");
                 }
+                if (name.equalsIgnoreCase("decodeMode")) {//0快速/1深度/2并行
+                    try {
+                        int mode = Integer.parseInt(result);
+                        GeneralVariables.decodeMode = Math.max(0, Math.min(2, mode));
+                        hasDecodeMode = true;
+                    } catch (Exception e) {
+                        Log.e(TAG, "decodeMode: " + e.getMessage());
+                    }
+                }
+                if (name.equalsIgnoreCase("parallelSlices")) {
+                    try {
+                        GeneralVariables.parallelSlices = Math.max(2, Math.min(8, Integer.parseInt(result)));
+                    } catch (Exception e) {
+                        Log.e(TAG, "parallelSlices: " + e.getMessage());
+                    }
+                }
+                if (name.equalsIgnoreCase("parallelThreads")) {
+                    try {
+                        GeneralVariables.parallelThreads = Math.max(0, Math.min(4, Integer.parseInt(result)));
+                    } catch (Exception e) {
+                        Log.e(TAG, "parallelThreads: " + e.getMessage());
+                    }
+                }
+                if (name.equalsIgnoreCase("parallelTimeout")) {
+                    try {
+                        GeneralVariables.parallelTimeout = Math.max(3000, Math.min(12000, Integer.parseInt(result)));
+                    } catch (Exception e) {
+                        Log.e(TAG, "parallelTimeout: " + e.getMessage());
+                    }
+                }
                 if (name.equalsIgnoreCase("audioInputSource")) {//录音音源
                     GeneralVariables.audioInputSource = result.equals("")
                             ? AudioInputSource.DEFAULT : Integer.parseInt(result);
@@ -2232,6 +2263,11 @@ public class DatabaseOpr extends SQLiteOpenHelper {
             }
 
             cursor.close();
+
+            //旧配置迁移：没有 decodeMode 时，按原来的 deepMode 恢复快速/深度
+            if (!hasDecodeMode) {
+                GeneralVariables.decodeMode = GeneralVariables.deepDecodeMode ? 1 : 0;
+            }
 
             GetAllQSLCallsign.get(db);//获取通联过的呼号
 
