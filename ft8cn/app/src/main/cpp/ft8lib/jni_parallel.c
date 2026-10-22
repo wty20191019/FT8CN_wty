@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #include "common/monitor.h"
 #include "ft8/decode.h"
@@ -51,6 +52,71 @@ typedef struct
     int snr;
     bool valid;
 } parallel_worker_t;
+
+/* ------------------------------------------------------------------------- */
+/* Callsign hash table                                                       */
+/*                                                                           */
+/* ftx_message_decode() needs a hash interface for non-standard callsigns.    */
+/* The table is filled by messages decoded earlier in the same session, so    */
+/* hashed calls can be resolved to plain text when possible.                 */
+/* ------------------------------------------------------------------------- */
+
+#define CALLSIGN_HASHTABLE_SIZE 512
+
+static struct
+{
+    char callsign[12];
+    uint32_t hash;
+} callsign_hashtable[CALLSIGN_HASHTABLE_SIZE];
+static int callsign_hashtable_size;
+static pthread_mutex_t callsign_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void callsign_hashtable_add(const char* callsign, uint32_t hash)
+{
+    uint16_t hash10 = (hash >> 12) & 0x3FFu;
+    int idx = (hash10 * 23) % CALLSIGN_HASHTABLE_SIZE;
+    int probes = 0;
+    while (callsign_hashtable[idx].callsign[0] != '\0' && probes < CALLSIGN_HASHTABLE_SIZE)
+    {
+        if (((callsign_hashtable[idx].hash & 0x3FFFFFu) == hash) &&
+            (strcmp(callsign_hashtable[idx].callsign, callsign) == 0))
+            return;
+        idx = (idx + 1) % CALLSIGN_HASHTABLE_SIZE;
+        ++probes;
+    }
+    if (probes >= CALLSIGN_HASHTABLE_SIZE) return;
+    callsign_hashtable_size++;
+    strncpy(callsign_hashtable[idx].callsign, callsign, 11);
+    callsign_hashtable[idx].callsign[11] = '\0';
+    callsign_hashtable[idx].hash = hash;
+}
+
+static bool callsign_hashtable_lookup(ftx_callsign_hash_type_t hash_type, uint32_t hash,
+                                      char* callsign)
+{
+    uint8_t shift = (hash_type == FTX_CALLSIGN_HASH_10_BITS) ? 12
+                    : (hash_type == FTX_CALLSIGN_HASH_12_BITS ? 10 : 0);
+    uint16_t hash10 = (hash >> (12 - shift)) & 0x3FFu;
+    int idx = (hash10 * 23) % CALLSIGN_HASHTABLE_SIZE;
+    int probes = 0;
+    while (callsign_hashtable[idx].callsign[0] != '\0' && probes < CALLSIGN_HASHTABLE_SIZE)
+    {
+        if (((callsign_hashtable[idx].hash & 0x3FFFFFu) >> shift) == hash)
+        {
+            strcpy(callsign, callsign_hashtable[idx].callsign);
+            return true;
+        }
+        idx = (idx + 1) % CALLSIGN_HASHTABLE_SIZE;
+        ++probes;
+    }
+    callsign[0] = '\0';
+    return false;
+}
+
+static ftx_callsign_hash_interface_t callsign_hash_if = {
+    .lookup_hash = callsign_hashtable_lookup,
+    .save_hash = callsign_hashtable_add,
+};
 
 /* ------------------------------------------------------------------------- */
 /* Small helpers                                                             */
@@ -370,7 +436,9 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeFillMessage(
 
     char text[FTX_MAX_MESSAGE_LENGTH];
     ftx_message_offsets_t offsets;
-    ftx_message_rc_t rc = ftx_message_decode(&w->message, NULL, text, &offsets);
+    pthread_mutex_lock(&callsign_mutex);
+    ftx_message_rc_t rc = ftx_message_decode(&w->message, &callsign_hash_if, text, &offsets);
+    pthread_mutex_unlock(&callsign_mutex);
     if (rc != FTX_MESSAGE_RC_OK)
         text[0] = '\0';
 
