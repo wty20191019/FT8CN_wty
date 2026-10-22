@@ -100,7 +100,9 @@ public class ParallelDecodeTest {
             }
         };
 
-        ParallelDecodeEngine engine = new ParallelDecodeEngine(listener, new MutableLiveData<>());
+        ParallelDecodeEngine engine = new ParallelDecodeEngine(listener, new MutableLiveData<>(),
+                millis -> {
+                });
         assertTrue("并行引擎执行失败", engine.decode(System.currentTimeMillis(), audio));
 
         boolean found = false;

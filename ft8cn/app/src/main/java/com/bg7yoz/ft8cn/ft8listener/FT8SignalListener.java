@@ -51,11 +51,19 @@ public class FT8SignalListener {
         void getVoiceData(int duration, boolean afterDoneRemove, OnGetVoiceDataDone getVoiceDataDone);
     }
 
+    /**
+     * 并行核心更新时间，供 MainViewModel 的自动程序判断是否还有时间发射。
+     */
+    private void setParallelDecodeTime(long millis) {
+        timeSec = millis;
+    }
+
     public FT8SignalListener(DatabaseOpr db, OnFt8Listen onFt8Listen) {
         //this.hamRecorder = hamRecorder;
         this.onFt8Listen = onFt8Listen;
         this.db = db;
-        this.parallelDecodeEngine = new ParallelDecodeEngine(onFt8Listen, decodeTimeSec);
+        this.parallelDecodeEngine = new ParallelDecodeEngine(onFt8Listen, decodeTimeSec,
+                this::setParallelDecodeTime);
 
         //创建动作触发器，与UTC时间同步，以15秒一个周期，DoOnSecTimer是在周期起始时触发的事件。150是15秒
         utcTimer = new UtcTimer(FT8Common.FT8_SLOT_TIME_M, false, new OnUtcTimer() {

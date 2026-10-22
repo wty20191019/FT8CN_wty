@@ -33,13 +33,20 @@ public final class ParallelDecodeEngine {
     private static final int MAX_CANDIDATES_PER_SLICE = 200;
     private static final float BIN_HZ = 6.25f;
 
+    public interface TimeSink {
+        void setDecodeTime(long millis);
+    }
+
     private final OnFt8Listen onFt8Listen;
     private final MutableLiveData<Long> decodeTimeSec;
+    private final TimeSink timeSink;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
-    public ParallelDecodeEngine(OnFt8Listen onFt8Listen, MutableLiveData<Long> decodeTimeSec) {
+    public ParallelDecodeEngine(OnFt8Listen onFt8Listen, MutableLiveData<Long> decodeTimeSec,
+                                TimeSink timeSink) {
         this.onFt8Listen = onFt8Listen;
         this.decodeTimeSec = decodeTimeSec;
+        this.timeSink = timeSink;
     }
 
     /**
@@ -270,8 +277,12 @@ public final class ParallelDecodeEngine {
     }
 
     private void publishTime(long started) {
+        long elapsed = System.currentTimeMillis() - started;
+        if (timeSink != null) {
+            timeSink.setDecodeTime(elapsed);
+        }
         if (decodeTimeSec != null) {
-            decodeTimeSec.postValue(System.currentTimeMillis() - started);
+            decodeTimeSec.postValue(elapsed);
         }
     }
 
