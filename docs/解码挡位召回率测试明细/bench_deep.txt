@@ -1,0 +1,70 @@
+mode=deep
+deep      191111_110115.wav          0/1    missed  1  extra  0    107.0 ms
+deep      191111_110130.wav          4/5    missed  1  extra  0    182.0 ms
+deep      191111_110145.wav          2/2    missed  0  extra  0    154.0 ms
+deep      191111_110200.wav          4/5    missed  1  extra  0    159.0 ms
+deep      191111_110215.wav          3/4    missed  1  extra  0    146.0 ms
+deep      191111_110615.wav         19/22   missed  3  extra  1    197.0 ms
+deep      191111_110630.wav         11/15   missed  4  extra  1    146.0 ms
+deep      191111_110645.wav         17/20   missed  3  extra  0    151.0 ms
+deep      191111_110700.wav         14/16   missed  2  extra  0    135.0 ms
+deep      test_01.wav               17/24   missed  7  extra  3    144.0 ms
+deep      test_02.wav               19/24   missed  5  extra  1    132.0 ms
+deep      test_03.wav               12/19   missed  7  extra  0    148.0 ms
+deep      test_04.wav               17/20   missed  3  extra  2    134.0 ms
+deep      test_05.wav               20/32   missed 12  extra  0    146.0 ms
+deep      test_06.wav               20/27   missed  7  extra  2    141.0 ms
+deep      test_07.wav               19/31   missed 12  extra  0    139.0 ms
+deep      test_08.wav               16/19   missed  3  extra  4    136.0 ms
+deep      test_09.wav               18/27   missed  9  extra  1    147.0 ms
+deep      test_10.wav               16/20   missed  4  extra  4    132.0 ms
+deep      test_11.wav               19/31   missed 12  extra  0    140.0 ms
+deep      test_12.wav               15/18   missed  3  extra  2    128.0 ms
+deep      test_13.wav               21/26   missed  5  extra  0    138.0 ms
+deep      test_14.wav               16/17   missed  1  extra  1    135.0 ms
+deep      test_15.wav               21/28   missed  7  extra  0    136.0 ms
+deep      test_16.wav               16/16   missed  0  extra  2    139.0 ms
+deep      test_17.wav               19/26   missed  7  extra  1    165.0 ms
+deep      test_18.wav               17/20   missed  3  extra  0    147.0 ms
+deep      test_19.wav               21/30   missed  9  extra  0    135.0 ms
+deep      test_20.wav               17/20   missed  3  extra  2    138.0 ms
+deep      test_21.wav               19/34   missed 15  extra  0    140.0 ms
+deep      test_22.wav               20/23   missed  3  extra  0    141.0 ms
+deep      test_23.wav               17/26   missed  9  extra  2    143.0 ms
+deep      test_24.wav               19/22   missed  3  extra  1    142.0 ms
+deep      test_25.wav               20/28   missed  8  extra  1    139.0 ms
+deep      test_26.wav               17/23   missed  6  extra  1    146.0 ms
+deep      test_27.wav               20/29   missed  9  extra  2    142.0 ms
+deep      test_28.wav               16/25   missed  9  extra  0    141.0 ms
+deep      test_29.wav               17/23   missed  6  extra  2    139.0 ms
+deep      test_30.wav               19/27   missed  8  extra  0    135.0 ms
+deep      test_31.wav               17/24   missed  7  extra  3    147.0 ms
+deep      test_32.wav               20/25   missed  5  extra  2    154.0 ms
+deep      test_33.wav               19/28   missed  9  extra  0    138.0 ms
+deep      test_34.wav               17/25   missed  8  extra  0    137.0 ms
+deep      test_35.wav               19/32   missed 13  extra  0    137.0 ms
+deep      test_36.wav               16/24   missed  8  extra  0    136.0 ms
+deep      test_37.wav               16/24   missed  8  extra  0    137.0 ms
+deep      test_38.wav               13/19   missed  6  extra  0    135.0 ms
+deep      websdr_test1.wav          13/18   missed  5  extra  3    143.0 ms
+deep      websdr_test10.wav         12/15   missed  3  extra  0    149.0 ms
+deep      websdr_test11.wav         14/23   missed  9  extra  0    140.0 ms
+deep      websdr_test12.wav          6/14   missed  8  extra  1    155.0 ms
+deep      websdr_test13.wav         11/13   missed  2  extra  2    147.0 ms
+deep      websdr_test2.wav          19/21   missed  2  extra  0    135.0 ms
+deep      websdr_test3.wav           9/11   missed  2  extra  3    144.0 ms
+deep      websdr_test4.wav          21/23   missed  2  extra  1    135.0 ms
+deep      websdr_test5.wav          18/27   missed  9  extra  0    138.0 ms
+deep      websdr_test6.wav          21/30   missed  9  extra  0    137.0 ms
+deep      websdr_test7.wav          17/27   missed 10  extra  1    142.0 ms
+deep      websdr_test8.wav          18/26   missed  8  extra  1    134.0 ms
+deep      websdr_test9.wav          16/24   missed  8  extra  0    138.0 ms
+===== deep =====
+文件数        : 60
+期望消息数    : 1298
+命中          : 946
+漏解 (missed) : 352 (27.1%)
+多余 (extra)  : 53 (4.1%)
+重复 (dup)    : 0
+召回率 Recall : 72.9%
+解码耗时      : avg 142.4 ms, P50 140 ms, P95 159 ms, max 197 ms
