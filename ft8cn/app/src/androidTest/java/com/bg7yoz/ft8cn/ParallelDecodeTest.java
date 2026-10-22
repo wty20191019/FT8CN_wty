@@ -64,7 +64,9 @@ public class ParallelDecodeTest {
             assertNotNull("payload 为空", decoded.payload);
 
             // 抵消路径：不应崩溃，且之后仍能重新搜索
-            Ft8LibJni.nativeSubtract(decoder, decoded.payload, decoded.freq_hz, decoded.time_sec);
+            Ft8LibJni.nativeSubtract(decoder, decoded.payload,
+                    decoded.parallelTimeOffset, decoded.parallelTimeSub,
+                    decoded.parallelFreqOffset, decoded.parallelFreqSub);
             int after = Ft8LibJni.nativeFindRange(worker, 0, Integer.MAX_VALUE);
             assertTrue("抵消后候选数异常", after >= 0);
         } finally {

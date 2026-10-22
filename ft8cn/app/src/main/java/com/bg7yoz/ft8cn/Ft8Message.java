@@ -99,6 +99,12 @@ public class Ft8Message {
      */
     public byte[] payload = null;
 
+    // 并行解码核心的原始候选位置，用于精确抵消
+    public int parallelTimeOffset = 0;
+    public int parallelTimeSub = 0;
+    public int parallelFreqOffset = 0;
+    public int parallelFreqSub = 0;
+
 
 
 
@@ -207,6 +213,10 @@ public class Ft8Message {
             //并行解码核心附加字段；旧模式为 null
             decodedText = message.decodedText;
             payload = message.payload;
+            parallelTimeOffset = message.parallelTimeOffset;
+            parallelTimeSub = message.parallelTimeSub;
+            parallelFreqOffset = message.parallelFreqOffset;
+            parallelFreqSub = message.parallelFreqSub;
             isWeakSignal = message.isWeakSignal;
 
             //Log.d(TAG, String.format("i3:%d,n3:%d,From:%s,To:%s", i3, n3, getCallsignFrom(), getCallsignTo()));

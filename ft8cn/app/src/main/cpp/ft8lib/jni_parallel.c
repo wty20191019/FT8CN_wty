@@ -50,6 +50,10 @@ typedef struct
     float time_sec;
     int score;
     int snr;
+    int time_offset;
+    int time_sub;
+    int freq_offset;
+    int freq_sub;
     bool valid;
 } parallel_worker_t;
 
@@ -388,12 +392,16 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeDecode(
     w->freq_hz = (w->dec->mon.min_bin + cand->freq_offset +
                   (float)cand->freq_sub / w->dec->mon.wf.freq_osr) /
                  w->dec->mon.symbol_period;
-    w->time_sec = (cand->time_offset +
-                   (float)cand->time_sub / w->dec->mon.wf.time_osr) *
-                  w->dec->mon.symbol_period;
+    // Keep FT8CN original display convention for DT
+    w->time_sec = ((cand->time_offset + (float)cand->time_sub) *
+                   w->dec->mon.symbol_period) / w->dec->mon.wf.time_osr;
+    w->time_offset = cand->time_offset;
+    w->time_sub = cand->time_sub;
+    w->freq_offset = cand->freq_offset;
+    w->freq_sub = cand->freq_sub;
     w->score = cand->score;
-    /* ft8_lib does not compute SNR; use the same rough estimate as its demo. */
-    w->snr = (int)(cand->score * 0.5f);
+    // Align with FT8CN's original ft8_guess_snr()
+    w->snr = ftx_estimate_snr(&w->dec->mon.wf, cand);
     w->valid = true;
     return JNI_TRUE;
 }
@@ -424,6 +432,10 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeFillMessage(
     jfieldID f_modifier = (*env)->GetFieldID(env, cls, "modifier", "Ljava/lang/String;");
     jfieldID f_text = (*env)->GetFieldID(env, cls, "decodedText", "Ljava/lang/String;");
     jfieldID f_payload = (*env)->GetFieldID(env, cls, "payload", "[B");
+    jfieldID f_toff = (*env)->GetFieldID(env, cls, "parallelTimeOffset", "I");
+    jfieldID f_tsub = (*env)->GetFieldID(env, cls, "parallelTimeSub", "I");
+    jfieldID f_foff = (*env)->GetFieldID(env, cls, "parallelFreqOffset", "I");
+    jfieldID f_fsub = (*env)->GetFieldID(env, cls, "parallelFreqSub", "I");
 
     (*env)->SetBooleanField(env, msg, f_isValid, JNI_TRUE);
     (*env)->SetIntField(env, msg, f_snr, w->snr);
@@ -455,6 +467,10 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeFillMessage(
     (*env)->SetObjectField(env, msg, f_grid, (*env)->NewStringUTF(env, grid));
     (*env)->SetObjectField(env, msg, f_modifier, (*env)->NewStringUTF(env, modifier));
     (*env)->SetIntField(env, msg, f_report, report);
+    (*env)->SetIntField(env, msg, f_toff, w->time_offset);
+    (*env)->SetIntField(env, msg, f_tsub, w->time_sub);
+    (*env)->SetIntField(env, msg, f_foff, w->freq_offset);
+    (*env)->SetIntField(env, msg, f_fsub, w->freq_sub);
 
     jbyteArray payload = (*env)->NewByteArray(env, FTX_PAYLOAD_LENGTH_BYTES);
     if (payload != NULL)
@@ -469,7 +485,7 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeFillMessage(
 JNIEXPORT void JNICALL
 Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeSubtract(
     JNIEnv* env, jclass clazz, jlong handle, jbyteArray payload,
-    jfloat freq_hz, jfloat time_sec)
+    jint time_offset, jint time_sub, jint freq_offset, jint freq_sub)
 {
     (void)clazz;
     parallel_decoder_t* dec = (parallel_decoder_t*)(intptr_t)handle;
@@ -483,25 +499,22 @@ Java_com_bg7yoz_ft8cn_ft8listener_Ft8LibJni_nativeSubtract(
     ft8_encode(p, tones);
 
     ftx_waterfall_t* wf = &dec->mon.wf;
-    int base_bin = (int)lroundf(freq_hz / 6.25f) - dec->mon.min_bin;
-    int base_block = (int)lroundf(time_sec / dec->mon.symbol_period);
-
     for (int sym = 0; sym < FT8_NN; ++sym)
     {
-        int block = base_block + sym;
+        int block = time_offset + sym;
         if (block < 0 || block >= wf->num_blocks) continue;
-        int bin = base_bin + tones[sym];
+        int bin = freq_offset + tones[sym];
         for (int dt = -1; dt <= 1; ++dt)
         {
             int b = bin + dt;
             if (b < 0 || b >= wf->num_bins) continue;
-            for (int time_sub = 0; time_sub < wf->time_osr; ++time_sub)
+            for (int ts = 0; ts < wf->time_osr; ++ts)
             {
-                for (int freq_sub = 0; freq_sub < wf->freq_osr; ++freq_sub)
+                for (int fs = 0; fs < wf->freq_osr; ++fs)
                 {
                     int idx = block * wf->block_stride +
-                              time_sub * wf->freq_osr * wf->num_bins +
-                              freq_sub * wf->num_bins + b;
+                              ts * wf->freq_osr * wf->num_bins +
+                              fs * wf->num_bins + b;
                     wf->mag[idx] = 0;
                 }
             }

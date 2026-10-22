@@ -44,6 +44,7 @@ typedef struct
     int time_osr;            ///< number of time subdivisions
     int freq_osr;            ///< number of frequency subdivisions
     WF_ELEM_T* mag;          ///< FFT magnitudes stored as uint8_t[blocks][time_osr][freq_osr][num_bins]
+    float* mag2;             ///< Linear FFT power, same layout as mag, used for SNR
     int block_stride;        ///< Helper value = time_osr * freq_osr * num_bins
     ftx_protocol_t protocol; ///< Indicate if using FT4 or FT8
 } ftx_waterfall_t;
@@ -57,6 +58,7 @@ typedef struct
     int16_t freq_offset; ///< Index of the frequency bin
     uint8_t time_sub;    ///< Index of the time subdivision used
     uint8_t freq_sub;    ///< Index of the frequency subdivision used
+    int snr;             ///< Estimated SNR in dB (filled by ftx_estimate_snr)
 } ftx_candidate_t;
 
 /// Structure that contains the status of various steps during decoding of a message
@@ -88,6 +90,9 @@ int ftx_find_candidates(const ftx_waterfall_t* power, int num_candidates, ftx_ca
 /// @param[out] status ftx_decode_status_t structure that will be filled with the status of various decoding steps
 /// @return True if the decoding was successful, false otherwise (check status for details)
 bool ftx_decode_candidate(const ftx_waterfall_t* power, const ftx_candidate_t* cand, int max_iterations, ftx_message_t* message, ftx_decode_status_t* status);
+
+/// Estimate SNR in dB from the Costas tones, matching FT8CN's ft8_guess_snr().
+int ftx_estimate_snr(const ftx_waterfall_t* power, const ftx_candidate_t* cand);
 
 #ifdef __cplusplus
 }

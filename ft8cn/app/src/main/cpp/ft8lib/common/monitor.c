@@ -44,12 +44,14 @@ static void waterfall_init(ftx_waterfall_t* me, int max_blocks, int num_bins, in
     me->freq_osr = freq_osr;
     me->block_stride = (time_osr * freq_osr * num_bins);
     me->mag = (WF_ELEM_T*)malloc(mag_size);
+    me->mag2 = (float*)malloc(mag_size * sizeof(float) / sizeof(me->mag[0]));
     LOG(LOG_DEBUG, "Waterfall size = %zu\n", mag_size);
 }
 
 static void waterfall_free(ftx_waterfall_t* me)
 {
     free(me->mag);
+    free(me->mag2);
 }
 
 void monitor_init(monitor_t* me, const monitor_config_t* cfg)
@@ -180,6 +182,7 @@ void monitor_process(monitor_t* me, const float* frame)
                 int scaled = (int)(2 * db + 240);
                 me->wf.mag[offset] = (scaled < 0) ? 0 : ((scaled > 255) ? 255 : scaled);
 #endif
+                me->wf.mag2[offset] = mag2;
                 ++offset;
 
                 if (db > me->max_mag)

@@ -391,6 +391,45 @@ bool ftx_decode_candidate(const ftx_waterfall_t* wf, const ftx_candidate_t* cand
     return true;
 }
 
+static const float* get_cand_mag2(const ftx_waterfall_t* wf, const ftx_candidate_t* candidate)
+{
+    int offset = candidate->time_offset;
+    offset = (offset * wf->time_osr) + candidate->time_sub;
+    offset = (offset * wf->freq_osr) + candidate->freq_sub;
+    offset = (offset * wf->num_bins) + candidate->freq_offset;
+    return wf->mag2 + offset;
+}
+
+int ftx_estimate_snr(const ftx_waterfall_t* wf, const ftx_candidate_t* cand)
+{
+    const float* mag_signal = get_cand_mag2(wf, cand);
+    float signal = 0.0f;
+    float noise = 0.0f;
+
+    for (int i = 0; i < 7; ++i)
+    {
+        // mag_signal already points at candidate time_offset; only add i
+        int b0 = cand->time_offset + i;
+        if (b0 >= 0 && b0 < wf->num_blocks)
+        {
+            signal += mag_signal[i * wf->block_stride + kFT8_Costas_pattern[i]];
+            noise += mag_signal[i * wf->block_stride + ((kFT8_Costas_pattern[i] + 4) % 8)];
+        }
+        int b1 = b0 + 36;
+        if (b1 >= 0 && b1 < wf->num_blocks)
+        {
+            signal += mag_signal[(i + 36) * wf->block_stride + kFT8_Costas_pattern[i]];
+            noise += mag_signal[(i + 36) * wf->block_stride + ((kFT8_Costas_pattern[i] + 4) % 8)];
+        }
+    }
+
+    if (noise == 0.0f) return -100;
+    float raw = signal / noise;
+    int snr = (int)floorf(10.0f * log10f(1E-12f + raw) - 24.0f + 0.5f);
+    if (snr < -30) snr = -30;
+    return snr;
+}
+
 static float max2(float a, float b)
 {
     return (a >= b) ? a : b;

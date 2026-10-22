@@ -63,12 +63,15 @@ public final class Ft8LibJni {
     /**
      * 在共享瀑布图上抵消一个已解信号（深解使用）。
      *
-     * @param payload  77 bit payload（10 字节）
-     * @param freqHz   信号绝对频率
-     * @param timeSec  信号时间偏移
+     * @param payload     77 bit payload（10 字节）
+     * @param timeOffset  候选时间块
+     * @param timeSub     时间子采样
+     * @param freqOffset  候选频率 bin
+     * @param freqSub     频率子采样
      */
     public static native void nativeSubtract(long decoder, byte[] payload,
-                                             float freqHz, float timeSec);
+                                             int timeOffset, int timeSub,
+                                             int freqOffset, int freqSub);
 
     public static native void nativeFreeWorker(long worker);
 

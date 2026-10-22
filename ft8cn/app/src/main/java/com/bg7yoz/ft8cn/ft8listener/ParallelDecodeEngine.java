@@ -148,7 +148,9 @@ public final class ParallelDecodeEngine {
                     // 串行抵消，避免多线程同时写共享瀑布图
                     for (Ft8Message m : newMessages) {
                         if (m.payload != null && m.payload.length >= 10) {
-                            Ft8LibJni.nativeSubtract(decoder, m.payload, m.freq_hz, m.time_sec);
+                            Ft8LibJni.nativeSubtract(decoder, m.payload,
+                                    m.parallelTimeOffset, m.parallelTimeSub,
+                                    m.parallelFreqOffset, m.parallelFreqSub);
                         }
                     }
                     publishTime(started);
