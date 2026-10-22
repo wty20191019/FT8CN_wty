@@ -136,7 +136,7 @@ public class FT8SignalListener {
                 //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
                 if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
                     handled = decodeByWsjtx(utc, voiceData
-                            , mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP, time);
+                            , mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP, time) != null;
                     if (!handled) {
                         //当前设备ABI没有对应so（如armeabi-v7a/x86），后续直接回退
                         wsjtxAvailable = false;
@@ -162,9 +162,9 @@ public class FT8SignalListener {
      * @param voiceData 12kHz、float音频
      * @param deep      true=BP_ALL_OSD + DEEP门限
      * @param startTime 本轮解码的开始时间
-     * @return true=解码流程完成（包括没有解出消息）；false=库不可用或出错，需要回退
+     * @return 消息列表；返回null表示库不可用或出错，需要回退
      */
-    private boolean decodeByWsjtx(long utc, float[] voiceData, boolean deep, long startTime) {
+    ArrayList<Ft8Message> decodeByWsjtx(long utc, float[] voiceData, boolean deep, long startTime) {
         try {
             ArrayList<Ft8Message> allMsg = new ArrayList<>();
             WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
@@ -180,11 +180,11 @@ public class FT8SignalListener {
                         , UtcTimer.sequential(utc), msgs, false);
             }
             Log.d(TAG, String.format("wsjtx解码完成，共%d条", allMsg.size()));
-            return true;
+            return allMsg;
         } catch (Throwable e) {
             //UnsatisfiedLinkError、ExceptionInInitializerError等都从这里回退
             Log.e(TAG, "wsjtx解码不可用，回退到原解码器：" + e.getMessage(), e);
-            return false;
+            return null;
         }
     }
 
@@ -195,8 +195,9 @@ public class FT8SignalListener {
      * @param voiceData 12kHz、float音频
      * @param deep      true=多次解码
      * @param startTime 本轮解码的开始时间
+     * @return 本轮解出的全部消息
      */
-    private void decodeByLegacy(long utc, float[] voiceData, boolean deep, long startTime) {
+    ArrayList<Ft8Message> decodeByLegacy(long utc, float[] voiceData, boolean deep, long startTime) {
         ///读入音频数据，并做预处理
         //其实这种方式要注意一个问题，在一个周期之内，必须解码完毕，否则新的解码又要开始了
         long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE
@@ -240,6 +241,7 @@ public class FT8SignalListener {
         }
         //移到finalize() 方法中调用了
         DeleteDecoder(ft8Decoder);
+        return allMsg;
     }
 
 
@@ -299,7 +301,8 @@ public class FT8SignalListener {
 
         for (WsjtxDecoder.Row row : rows) {
             Ft8Message msg = toFt8Message(row, utc, isDeep);
-            if (msg != null) out.add(msg);
+            //与原来的解码器保持一致：相同报文只保留一条
+            if (msg != null && !checkMessageSame(out, msg)) out.add(msg);
         }
         return out;
     }
@@ -352,7 +355,9 @@ public class FT8SignalListener {
             //CQ [修饰符] 呼号 [附加信息]，例如：CQ POTA BG7YOZ OL50
             msg.callsignTo = tokens[0];
             if (tokens.length >= 3 && looksLikeCallsign(tokens[1])
-                    && looksLikeCallsign(tokens[2])) {
+                    && looksLikeCallsign(tokens[2]) && !looksLikeGrid(tokens[2])) {
+                //第三个词不是网格，才把第二个词当作CQ修饰符（DX/POTA/TEST等）；
+                //否则 "CQ OK6LZ JN99" 会把网格误当成呼号
                 msg.modifier = tokens[1];
                 msg.callsignFrom = tokens[2];
                 msg.extraInfo = joinTokens(tokens, 3);
@@ -435,6 +440,13 @@ public class FT8SignalListener {
     private boolean isNonStandardCallsign(String callsign) {
         return callsign != null && (callsign.indexOf('/') >= 0
                 || callsign.indexOf('<') >= 0 || callsign.indexOf('>') >= 0);
+    }
+
+    /**
+     * 是不是4位或6位梅登海德网格，例如 JN99、PM95AA。
+     */
+    private boolean looksLikeGrid(String token) {
+        return token != null && token.toUpperCase().matches("[A-R]{2}[0-9]{2}([A-X]{2})?");
     }
 
     private String joinTokens(String[] tokens, int from) {
