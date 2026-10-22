@@ -473,6 +473,8 @@
     <string name="deep_mode">Λειτουργία πολλαπλής αποκωδικοποίησης</string>
     <string name="wsjtx_mode">wsjtx Κανονική</string>
     <string name="wsjtx_deep_mode">wsjtx Βαθιά</string>
+    <string name="wsjtx_parallel_mode">wsjtx Κανονική πολυπύρηνη</string>
+    <string name="wsjtx_deep_parallel_mode">wsjtx Βαθιά πολυπύρηνη</string>
     <string name="export_null">Παρακαλώ χρησιμοποιήστε τον web browser των άλλων συσκευών για εξαγωγή στο παρασκήνιο στο ίδιο LAN που είναι αυτή η συσκευή.\nPlease connect to a valid Wi-Fi</string>
     <string name="deep_mode_help">decode_help_en.txt</string>
     <string name="null_task_html">Το έργο δεν υπάρχει!</string>

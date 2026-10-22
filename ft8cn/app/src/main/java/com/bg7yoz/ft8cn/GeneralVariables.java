@@ -40,11 +40,14 @@ public class GeneralVariables {
     public static boolean enableCloudlog = false;//是否启用Cloudlog自动同步
     public static boolean enableQRZ = false;//是否启用qrz自动同步
 
-    //解码挡位：0=快速解码，1=多次解码，2=wsjtx普通，3=wsjtx深度
+    //解码挡位：0=快速解码，1=多次解码，2=wsjtx普通，3=wsjtx深度，
+    //4=wsjtx普通多核，5=wsjtx深度多核
     public static final int DECODE_MODE_FAST = 0;//快速解码（原FT8CN解码器，一次解码）
     public static final int DECODE_MODE_DEEP = 1;//多次解码（原FT8CN解码器，多轮迭代）
     public static final int DECODE_MODE_WSJTX = 2;//wsjtx普通（mfsk-core，默认参数）
     public static final int DECODE_MODE_WSJTX_DEEP = 3;//wsjtx深度（mfsk-core，BP_ALL_OSD + DEEP门限）
+    public static final int DECODE_MODE_WSJTX_PARALLEL = 4;//wsjtx普通多核（频谱分段并行）
+    public static final int DECODE_MODE_WSJTX_DEEP_PARALLEL = 5;//wsjtx深度多核（频谱分段并行）
     public static int decodeMode = DECODE_MODE_FAST;//当前解码挡位
 
     public static boolean audioOutput32Bit = true;//音频输出类型true=float,false=int16
@@ -514,7 +517,30 @@ public class GeneralVariables {
      * @return true 表示使用 mfsk-core 解码
      */
     public static boolean isWsjtxDecodeMode() {
-        return decodeMode == DECODE_MODE_WSJTX || decodeMode == DECODE_MODE_WSJTX_DEEP;
+        return decodeMode == DECODE_MODE_WSJTX
+                || decodeMode == DECODE_MODE_WSJTX_DEEP
+                || decodeMode == DECODE_MODE_WSJTX_PARALLEL
+                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
+    }
+
+    /**
+     * 当前挡位是不是频谱分段并行的 wsjtx 挡位。
+     *
+     * @return true 表示使用多核分段解码
+     */
+    public static boolean isWsjtxParallelMode() {
+        return decodeMode == DECODE_MODE_WSJTX_PARALLEL
+                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
+    }
+
+    /**
+     * 当前 wsjtx 挡位是不是深度档。
+     *
+     * @return true 表示 deep=true
+     */
+    public static boolean isWsjtxDeepMode() {
+        return decodeMode == DECODE_MODE_WSJTX_DEEP
+                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
     }
 
     /**
@@ -530,6 +556,10 @@ public class GeneralVariables {
                 return getStringFromResource(R.string.wsjtx_mode);
             case DECODE_MODE_WSJTX_DEEP:
                 return getStringFromResource(R.string.wsjtx_deep_mode);
+            case DECODE_MODE_WSJTX_PARALLEL:
+                return getStringFromResource(R.string.wsjtx_parallel_mode);
+            case DECODE_MODE_WSJTX_DEEP_PARALLEL:
+                return getStringFromResource(R.string.wsjtx_deep_parallel_mode);
             case DECODE_MODE_FAST:
             default:
                 return getStringFromResource(R.string.fast_mode);

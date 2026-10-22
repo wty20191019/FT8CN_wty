@@ -1126,6 +1126,12 @@ public class ConfigFragment extends Fragment {
             case GeneralVariables.DECODE_MODE_WSJTX_DEEP:
                 binding.wsjtxDeepDecodeRadioButton.setChecked(true);
                 break;
+            case GeneralVariables.DECODE_MODE_WSJTX_PARALLEL:
+                binding.wsjtxParallelDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL:
+                binding.wsjtxDeepParallelDecodeRadioButton.setChecked(true);
+                break;
             case GeneralVariables.DECODE_MODE_FAST:
             default:
                 binding.fastDecodeRadioButton.setChecked(true);
@@ -1142,6 +1148,10 @@ public class ConfigFragment extends Fragment {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX;
                 } else if (buttonId == binding.wsjtxDeepDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_DEEP;
+                } else if (buttonId == binding.wsjtxParallelDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
+                } else if (buttonId == binding.wsjtxDeepParallelDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL;
                 } else {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_FAST;
                 }
@@ -1156,6 +1166,8 @@ public class ConfigFragment extends Fragment {
         binding.deepDecodeRadioButton.setOnClickListener(listener);
         binding.wsjtxDecodeRadioButton.setOnClickListener(listener);
         binding.wsjtxDeepDecodeRadioButton.setOnClickListener(listener);
+        binding.wsjtxParallelDecodeRadioButton.setOnClickListener(listener);
+        binding.wsjtxDeepParallelDecodeRadioButton.setOnClickListener(listener);
 
     }
 

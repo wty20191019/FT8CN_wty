@@ -7,6 +7,7 @@ import android.widget.TextView;
 
 import com.bg7yoz.ft8cn.FT8Common;
 import com.bg7yoz.ft8cn.Ft8Message;
+import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.io.BufferedReader;
@@ -48,6 +49,8 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_DEEP = "deep";
     private static final String MODE_WSJTX = "wsjtx";
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
+    private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
+    private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
     private static final long BENCH_UTC = 1750000000000L - (1750000000000L % 15000L);
@@ -79,7 +82,9 @@ public class BenchmarkActivity extends Activity {
         checkText = getIntent().getBooleanExtra("checktext", false);
         fileFilter = getIntent().getStringExtra("file");
 
-        final String benchDir = dir;
+        String benchDir = dir;
+        final int bands = getIntent().getIntExtra("bands", 0);
+        WsjtxBandDecoder.setBandCountForTest(bands);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -100,12 +105,16 @@ public class BenchmarkActivity extends Activity {
             modes.add(MODE_DEEP);
             modes.add(MODE_WSJTX);
             modes.add(MODE_WSJTX_DEEP);
+            modes.add(MODE_WSJTX_PARALLEL);
+            modes.add(MODE_WSJTX_DEEP_PARALLEL);
             return modes;
         }
         for (String m : modesArg.split(",")) {
             String s = m.trim().toLowerCase(Locale.US);
             if (s.equals(MODE_FAST) || s.equals(MODE_DEEP)
-                    || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)) {
+                    || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
+                    || s.equals(MODE_WSJTX_PARALLEL)
+                    || s.equals(MODE_WSJTX_DEEP_PARALLEL)) {
                 modes.add(s);
             }
         }
@@ -213,10 +222,11 @@ public class BenchmarkActivity extends Activity {
                         if (!uniqueGot.contains(e)) logLine("MISS " + e);
                     }
                     if (dumpRaw && mode.startsWith(MODE_WSJTX)) {
-                        dumpWsjtxRaw(audio, mode.equals(MODE_WSJTX_DEEP));
+                        dumpWsjtxRaw(audio, mode.equals(MODE_WSJTX_DEEP)
+                                || mode.equals(MODE_WSJTX_DEEP_PARALLEL));
                     }
                 }
-                if (checkText && mode.startsWith(MODE_WSJTX)) {
+                if (checkText && (mode.equals(MODE_WSJTX) || mode.equals(MODE_WSJTX_DEEP))) {
                     checkWsjtxText(wav.getName(), audio, mode.equals(MODE_WSJTX_DEEP), uniqueGot);
                 }
 
@@ -263,6 +273,10 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByWsjtx(BENCH_UTC, audio, false, start);
             case MODE_WSJTX_DEEP:
                 return listener.decodeByWsjtx(BENCH_UTC, audio, true, start);
+            case MODE_WSJTX_PARALLEL:
+                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false, start);
+            case MODE_WSJTX_DEEP_PARALLEL:
+                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true, start);
             default:
                 return new ArrayList<>();
         }
