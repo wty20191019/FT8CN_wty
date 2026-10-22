@@ -134,25 +134,28 @@ public class FT8SignalListener {
                 }
 
                 int mode = GeneralVariables.decodeMode;
-                boolean handled = false;
+                ArrayList<Ft8Message> decoded = null;
 
                 //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
                 if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
                     boolean deep = GeneralVariables.isWsjtxDeepMode();
                     if (GeneralVariables.isWsjtxParallelMode()) {
-                        handled = decodeByWsjtxParallel(utc, voiceData, deep, time) != null;
+                        decoded = decodeByWsjtxParallel(utc, voiceData, deep);
                     }
                     //多核分段失败时退回单实例 wsjtx
-                    if (!handled) {
-                        handled = decodeByWsjtx(utc, voiceData, deep, time) != null;
+                    if (decoded == null) {
+                        decoded = decodeByWsjtx(utc, voiceData, deep);
                     }
-                    if (!handled) {
+                    if (decoded == null) {
                         //当前设备ABI没有对应so（如armeabi-v7a/x86），后续直接回退
                         wsjtxAvailable = false;
+                    } else {
+                        //解码成功后单独回调；回调里的异常不能反过来触发重新解码
+                        publishWsjtxMessages(utc, decoded, deep, time);
                     }
                 }
 
-                if (!handled) {
+                if (decoded == null) {
                     //wsjtx普通回退到快速解码，wsjtx深度回退到多次解码
                     boolean deep = mode == GeneralVariables.DECODE_MODE_DEEP
                             || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP
@@ -171,14 +174,13 @@ public class FT8SignalListener {
      * @param utc       当前时隙的UTC时间
      * @param voiceData 12kHz、float音频
      * @param deep      true=BP_ALL_OSD + DEEP门限
-     * @param startTime 本轮解码的开始时间
      * @return 消息列表；返回null表示库不可用或出错，需要回退
      */
-    ArrayList<Ft8Message> decodeByWsjtx(long utc, float[] voiceData, boolean deep, long startTime) {
+    ArrayList<Ft8Message> decodeByWsjtx(long utc, float[] voiceData, boolean deep) {
         try {
             WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
                     voiceData, FT8Common.SAMPLE_RATE, deep);
-            return publishWsjtxRows(utc, rows, deep, startTime);
+            return toFt8Messages(rows, utc, deep);
         } catch (Throwable e) {
             //UnsatisfiedLinkError、ExceptionInInitializerError等都从这里回退
             Log.e(TAG, "wsjtx解码不可用，回退到原解码器：" + e.getMessage(), e);
@@ -192,11 +194,11 @@ public class FT8SignalListener {
      * @return 消息列表；返回null表示分段解码整体失败，应退回单实例 wsjtx
      */
     ArrayList<Ft8Message> decodeByWsjtxParallel(long utc, float[] voiceData,
-                                                boolean deep, long startTime) {
+                                                boolean deep) {
         try {
             WsjtxDecoder.Row[] rows = getWsjtxBandDecoder().decode(
                     voiceData, FT8Common.SAMPLE_RATE, deep);
-            return publishWsjtxRows(utc, rows, deep, startTime);
+            return toFt8Messages(rows, utc, deep);
         } catch (Throwable e) {
             Log.e(TAG, "wsjtx分段解码失败，回退到单实例：" + e.getMessage(), e);
             return null;
@@ -211,23 +213,31 @@ public class FT8SignalListener {
     }
 
     /**
-     * 把 wsjtx 的解码行转成消息、更新耗时并触发回调。
+     * 更新耗时并回调解码结果。回调异常只记录日志，绝不影响解码流程。
      */
-    private ArrayList<Ft8Message> publishWsjtxRows(long utc, WsjtxDecoder.Row[] rows,
-                                                   boolean deep, long startTime) {
-        ArrayList<Ft8Message> allMsg = new ArrayList<>();
-        ArrayList<Ft8Message> msgs = toFt8Messages(rows, utc, deep);
-        addMsgToList(allMsg, msgs);
+    private void publishWsjtxMessages(long utc, ArrayList<Ft8Message> msgs,
+                                      boolean deep, long startTime) {
         timeSec = System.currentTimeMillis() - startTime;
         decodeTimeSec.postValue(timeSec);//解码耗时
-        if (onFt8Listen != null) {
-            //wsjtx一个时隙只解码一次，回调按普通解码处理，
-            //保证自动通联逻辑对wsjtx深度的结果也生效
-            onFt8Listen.afterDecode(utc, averageOffset(allMsg)
-                    , UtcTimer.sequential(utc), msgs, false);
+        //wsjtx一个时隙只解码一次，回调按普通解码处理，
+        //保证自动通联逻辑对wsjtx深度的结果也生效
+        safeAfterDecode(utc, msgs, msgs, false);
+        Log.d(TAG, String.format("wsjtx解码完成，共%d条", msgs.size()));
+    }
+
+    /**
+     * 调用 afterDecode，但把下游异常挡在解码流程之外。
+     */
+    private void safeAfterDecode(long utc, ArrayList<Ft8Message> allMsg,
+                                 ArrayList<Ft8Message> msgs, boolean isDeep) {
+        try {
+            if (onFt8Listen != null) {
+                onFt8Listen.afterDecode(utc, averageOffset(allMsg)
+                        , UtcTimer.sequential(utc), msgs, isDeep);
+            }
+        } catch (Throwable e) {
+            Log.e(TAG, "afterDecode回调异常（解码结果不受影响）：" + e.getMessage(), e);
         }
-        Log.d(TAG, String.format("wsjtx解码完成，共%d条", allMsg.size()));
-        return allMsg;
     }
 
     /**
@@ -251,18 +261,14 @@ public class FT8SignalListener {
         addMsgToList(allMsg, msgs);
         timeSec = System.currentTimeMillis() - startTime;
         decodeTimeSec.postValue(timeSec);//解码耗时
-        if (onFt8Listen != null) {
-            onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, false);
-        }
+        safeAfterDecode(utc, allMsg, msgs, false);
 
         if (deep) {//进入多次解码模式
             msgs = runDecode(ft8Decoder, utc, true);
             addMsgToList(allMsg, msgs);
             timeSec = System.currentTimeMillis() - startTime;
             decodeTimeSec.postValue(timeSec);//解码耗时
-            if (onFt8Listen != null) {
-                onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, true);
-            }
+            safeAfterDecode(utc, allMsg, msgs, true);
 
             do {
                 if (timeSec > FT8Common.DEEP_DECODE_TIMEOUT) break;//此处做超时检测，超过一定时间(7秒)，就不做减码操作了
@@ -274,9 +280,7 @@ public class FT8SignalListener {
                 addMsgToList(allMsg, msgs);
                 timeSec = System.currentTimeMillis() - startTime;
                 decodeTimeSec.postValue(timeSec);//解码耗时
-                if (onFt8Listen != null) {
-                    onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, true);
-                }
+                safeAfterDecode(utc, allMsg, msgs, true);
 
             } while (msgs.size() > 0);
 
@@ -372,6 +376,8 @@ public class FT8SignalListener {
         msg.band = GeneralVariables.band;
         msg.signalFormat = FT8Common.FT8_MODE;
         msg.isWeakSignal = isDeep;
+        //空字符串而不是 null：下游 getCallsignAndGrid/addCallsignQTH 会直接使用
+        msg.maidenGrid = "";
 
         parseWsjtxText(msg, text);
         parseWsjtxExtra(msg);

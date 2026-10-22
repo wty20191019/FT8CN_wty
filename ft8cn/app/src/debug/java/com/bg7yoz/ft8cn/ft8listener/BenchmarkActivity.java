@@ -270,13 +270,13 @@ public class BenchmarkActivity extends Activity {
             case MODE_DEEP:
                 return listener.decodeByLegacy(BENCH_UTC, audio, true, start);
             case MODE_WSJTX:
-                return listener.decodeByWsjtx(BENCH_UTC, audio, false, start);
+                return listener.decodeByWsjtx(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP:
-                return listener.decodeByWsjtx(BENCH_UTC, audio, true, start);
+                return listener.decodeByWsjtx(BENCH_UTC, audio, true);
             case MODE_WSJTX_PARALLEL:
-                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false, start);
+                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP_PARALLEL:
-                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true, start);
+                return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true);
             default:
                 return new ArrayList<>();
         }
