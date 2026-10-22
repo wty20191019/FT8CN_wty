@@ -1,4 +1,5 @@
 Decode mode:
 Fast decode: Default mode, one decoding pass on received audio.
 Deep decode: Recursive decoding that process received audio in multiple passes .
-* Note: Deep decoding requires longer decoding time and more battery consumption. 
+* Note: Deep decoding requires longer decoding time and more battery consumption.
+Parallel decode: split the decode band into several slices, search candidates in each slice independently, decode them in parallel, then merge the results. The slice count controls the candidate budget (more slices help weak signals in crowded bands); the thread count only affects speed. Fast and deep decoding are unchanged, but parallel decoding uses more CPU and memory.
