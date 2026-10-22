@@ -16,6 +16,8 @@ static def getCurrentTime() {
 android {
 
     compileSdk 33
+    // 使用本机已安装的 NDK，避免 Gradle 尝试下载默认 NDK 23.1
+    ndkVersion '28.2.13676358'
 
     defaultConfig {
         applicationId "com.bg7yoz.ft8cn"
@@ -32,8 +34,11 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags '-JENABLE_XOM=false'//关闭XOM，
-
             }
+        }
+        ndk {
+            // 与 app/libs 下现有的 libft8cn.so 保持一致
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
         }
         signingConfig signingConfigs.debug
     }
@@ -54,12 +59,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-//    externalNativeBuild {
-//        cmake {
-//            path file('src/main/cpp/CMakeLists.txt')
-//            version '3.18.1'
-//        }
-//    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
 
     sourceSets {
         main {
