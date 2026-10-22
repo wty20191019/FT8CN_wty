@@ -1,0 +1,70 @@
+mode=wsjtx_deep_parallel
+wsjtx_deep_parallel 191111_110115.wav          1/1    missed  0  extra  0    246.0 ms
+wsjtx_deep_parallel 191111_110130.wav          5/5    missed  0  extra  0    309.0 ms
+wsjtx_deep_parallel 191111_110145.wav          2/2    missed  0  extra  0    177.0 ms
+wsjtx_deep_parallel 191111_110200.wav          5/5    missed  0  extra  0    216.0 ms
+wsjtx_deep_parallel 191111_110215.wav          4/4    missed  0  extra  4    347.0 ms
+wsjtx_deep_parallel 191111_110615.wav         18/22   missed  4  extra  0    296.0 ms
+wsjtx_deep_parallel 191111_110630.wav         14/15   missed  1  extra  2    263.0 ms
+wsjtx_deep_parallel 191111_110645.wav         16/20   missed  4  extra  0    206.0 ms
+wsjtx_deep_parallel 191111_110700.wav         16/16   missed  0  extra  1    243.0 ms
+wsjtx_deep_parallel test_01.wav               22/24   missed  2  extra  4    372.0 ms
+wsjtx_deep_parallel test_02.wav               19/24   missed  5  extra  2    268.0 ms
+wsjtx_deep_parallel test_03.wav               18/19   missed  1  extra  2    318.0 ms
+wsjtx_deep_parallel test_04.wav               17/20   missed  3  extra  4    248.0 ms
+wsjtx_deep_parallel test_05.wav               31/32   missed  1  extra  0    378.0 ms
+wsjtx_deep_parallel test_06.wav               22/27   missed  5  extra  1    243.0 ms
+wsjtx_deep_parallel test_07.wav               31/31   missed  0  extra  2    465.0 ms
+wsjtx_deep_parallel test_08.wav               13/19   missed  6  extra  0    223.0 ms
+wsjtx_deep_parallel test_09.wav               27/27   missed  0  extra  5    443.0 ms
+wsjtx_deep_parallel test_10.wav               17/20   missed  3  extra  0    204.0 ms
+wsjtx_deep_parallel test_11.wav               28/31   missed  3  extra  1    364.0 ms
+wsjtx_deep_parallel test_12.wav               17/18   missed  1  extra  2    210.0 ms
+wsjtx_deep_parallel test_13.wav               25/26   missed  1  extra  6    424.0 ms
+wsjtx_deep_parallel test_14.wav               13/17   missed  4  extra  1    180.0 ms
+wsjtx_deep_parallel test_15.wav               26/28   missed  2  extra  2    297.0 ms
+wsjtx_deep_parallel test_16.wav               12/16   missed  4  extra  2    225.0 ms
+wsjtx_deep_parallel test_17.wav               25/26   missed  1  extra  3    377.0 ms
+wsjtx_deep_parallel test_18.wav               15/20   missed  5  extra  0    274.0 ms
+wsjtx_deep_parallel test_19.wav               28/30   missed  2  extra  2    405.0 ms
+wsjtx_deep_parallel test_20.wav               17/20   missed  3  extra  2    300.0 ms
+wsjtx_deep_parallel test_21.wav               32/34   missed  2  extra  0    398.0 ms
+wsjtx_deep_parallel test_22.wav               20/23   missed  3  extra  1    250.0 ms
+wsjtx_deep_parallel test_23.wav               26/26   missed  0  extra  3    374.0 ms
+wsjtx_deep_parallel test_24.wav               20/22   missed  2  extra  1    281.0 ms
+wsjtx_deep_parallel test_25.wav               27/28   missed  1  extra  4    361.0 ms
+wsjtx_deep_parallel test_26.wav               21/23   missed  2  extra  0    266.0 ms
+wsjtx_deep_parallel test_27.wav               29/29   missed  0  extra  1    340.0 ms
+wsjtx_deep_parallel test_28.wav               21/25   missed  4  extra  1    244.0 ms
+wsjtx_deep_parallel test_29.wav               22/23   missed  1  extra  1    374.0 ms
+wsjtx_deep_parallel test_30.wav               24/27   missed  3  extra  3    309.0 ms
+wsjtx_deep_parallel test_31.wav               23/24   missed  1  extra  5    387.0 ms
+wsjtx_deep_parallel test_32.wav               21/25   missed  4  extra  3    270.0 ms
+wsjtx_deep_parallel test_33.wav               24/28   missed  4  extra  1    344.0 ms
+wsjtx_deep_parallel test_34.wav               20/25   missed  5  extra  2    281.0 ms
+wsjtx_deep_parallel test_35.wav               31/32   missed  1  extra  1    501.0 ms
+wsjtx_deep_parallel test_36.wav               19/24   missed  5  extra  1    289.0 ms
+wsjtx_deep_parallel test_37.wav               23/24   missed  1  extra  9    374.0 ms
+wsjtx_deep_parallel test_38.wav               17/19   missed  2  extra  2    294.0 ms
+wsjtx_deep_parallel websdr_test1.wav          17/18   missed  1  extra  1    294.0 ms
+wsjtx_deep_parallel websdr_test10.wav         13/15   missed  2  extra  3    349.0 ms
+wsjtx_deep_parallel websdr_test11.wav         23/23   missed  0  extra  2    371.0 ms
+wsjtx_deep_parallel websdr_test12.wav         14/14   missed  0  extra  7    310.0 ms
+wsjtx_deep_parallel websdr_test13.wav         13/13   missed  0  extra  6    260.0 ms
+wsjtx_deep_parallel websdr_test2.wav          17/21   missed  4  extra  1    236.0 ms
+wsjtx_deep_parallel websdr_test3.wav          10/11   missed  1  extra  5    254.0 ms
+wsjtx_deep_parallel websdr_test4.wav          23/23   missed  0  extra  8    369.0 ms
+wsjtx_deep_parallel websdr_test5.wav          26/27   missed  1  extra  2    334.0 ms
+wsjtx_deep_parallel websdr_test6.wav          28/30   missed  2  extra  3    387.0 ms
+wsjtx_deep_parallel websdr_test7.wav          27/27   missed  0  extra  4    356.0 ms
+wsjtx_deep_parallel websdr_test8.wav          24/26   missed  2  extra  0    407.0 ms
+wsjtx_deep_parallel websdr_test9.wav          22/24   missed  2  extra  1    282.0 ms
+===== wsjtx_deep_parallel =====
+文件数        : 60
+期望消息数    : 1298
+命中          : 1181
+漏解 (missed) : 117 (9.0%)
+多余 (extra)  : 130 (10.0%)
+重复 (dup)    : 0
+召回率 Recall : 91.0%
+解码耗时      : avg 311.1 ms, P50 297 ms, P95 424 ms, max 501 ms
