@@ -483,6 +483,7 @@
     <string name="wsjtx_deep_mode">wsjtx深度</string>
     <string name="wsjtx_parallel_mode">wsjtx普通多核</string>
     <string name="wsjtx_deep_parallel_mode">wsjtx深度多核</string>
+    <string name="hybrid_deep_fast_mode">提前深度 + 快速</string>
     <string name="export_null">请在与本机相同的局域网下，用其它设备的网页浏览器从后台导出。\n在浏览器的地址栏中输入如下内容：\n无法获取合适的IP地址，请连接到一个有效的Wifi。</string>
     <string name="deep_mode_help">decode_help.txt</string>
     <string name="null_task_html">任务不存在！</string>

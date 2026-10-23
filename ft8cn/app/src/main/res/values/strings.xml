@@ -492,6 +492,7 @@
     <string name="wsjtx_deep_mode">wsjtx Deep</string>
     <string name="wsjtx_parallel_mode">wsjtx Normal multi-core</string>
     <string name="wsjtx_deep_parallel_mode">wsjtx Deep multi-core</string>
+    <string name="hybrid_deep_fast_mode">Early deep + fast</string>
     <string name="export_null">Export from WebUI via web browser on another device under the same LAN \n Please connect to a valid Wi-Fi</string>
     <string name="null_task_html">Task not exist!</string>
     <string name="log_importing_html">Importing...</string>

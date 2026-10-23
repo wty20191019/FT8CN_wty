@@ -2198,7 +2198,7 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                     try {
                         int mode = Integer.parseInt(result);
                         if (mode >= GeneralVariables.DECODE_MODE_FAST
-                                && mode <= GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL) {
+                                && mode <= GeneralVariables.DECODE_MODE_HYBRID_DEEP_FAST) {
                             GeneralVariables.decodeMode = mode;
                         }
                     } catch (NumberFormatException e) {
