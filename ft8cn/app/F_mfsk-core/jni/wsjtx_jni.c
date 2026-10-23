@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "mfsk.h"
 
@@ -43,6 +44,47 @@ static const char *session_error(wsjtx_handle *h) {
     const char *detail = (h != NULL) ? mfsk_session_last_error(h->session) : NULL;
     if (detail == NULL) detail = mfsk_last_error();
     return detail != NULL ? detail : "unknown mfsk error";
+}
+
+// --- rayon (mfsk parallel) 线程池配置 --------------------------------------
+// 带 parallel 特性构建时，mfsk 用 rayon 并行处理候选。Android 上这些
+// 工作线程需要 Attach 到 ART，否则依赖 JNI 的操作不安全。
+static JavaVM *g_java_vm = NULL;
+
+static void worker_start(uint32_t index, void *user_data) {
+    (void)index;
+    (void)user_data;
+    JNIEnv *env = NULL;
+    if (g_java_vm != NULL) {
+        (*g_java_vm)->AttachCurrentThread(g_java_vm, &env, NULL);
+    }
+}
+
+static void worker_stop(uint32_t index, void *user_data) {
+    (void)index;
+    (void)user_data;
+    if (g_java_vm != NULL) {
+        (*g_java_vm)->DetachCurrentThread(g_java_vm);
+    }
+}
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
+    (void)reserved;
+    g_java_vm = vm;
+
+    long cores = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cores < 1) cores = 1;
+    if (cores > 8) cores = 8;
+
+    struct MfskRuntimeConfig cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.size = (uint32_t)sizeof(cfg);
+    cfg.num_threads = (uint32_t)cores;
+    cfg.on_thread_start = worker_start;
+    cfg.on_thread_stop = worker_stop;
+    // 没有 parallel 特性时返回 UNSUPPORTED，忽略即可。
+    mfsk_runtime_configure(&cfg);
+    return JNI_VERSION_1_6;
 }
 
 static jobjectArray rows_to_java(JNIEnv *env, const struct MfskDecode *rows, size_t n) {
@@ -113,7 +155,7 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeOpen(JNIEnv *env, jclass cls, jin
 // 共用实现。freq_min/freq_max 有效时只在该频段内搜索；否则沿用模式默认范围。
 static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
                                 jint sample_rate, jboolean deep,
-                                jfloat freq_min, jfloat freq_max) {
+                                jfloat freq_min, jfloat freq_max, jint profile) {
     wsjtx_handle *h = (wsjtx_handle *)(intptr_t)handle;
     if (h == NULL || h->session == NULL) {
         throw_illegal_state(env, "decoder is closed");
@@ -156,6 +198,45 @@ static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
     if (freq_min > 0.0f && freq_max > freq_min) {
         params.freq_min_hz = freq_min;
         params.freq_max_hz = freq_max;
+    }
+
+    // 速度档位（实验用）：
+    //   0=默认，1=关闭OSD，2=关闭OSD+单遍，3=单遍，4=严格门限+单遍
+    //   5=sic_early，6=2轮SIC，7=1轮SIC，8=sic_early+关闭OSD，9=1轮SIC+关闭OSD
+    switch (profile) {
+        case 1:
+            params.depth = MFSK_DECODE_DEPTH_BP_ALL;
+            break;
+        case 2:
+            params.depth = MFSK_DECODE_DEPTH_BP_ALL;
+            params.single_pass = true;
+            break;
+        case 3:
+            params.single_pass = true;
+            break;
+        case 4:
+            params.strictness = MFSK_STRICTNESS_STRICT;
+            params.single_pass = true;
+            break;
+        case 5:
+            params.sic_early = true;
+            break;
+        case 6:
+            params.sic_rounds = 2;
+            break;
+        case 7:
+            params.sic_rounds = 1;
+            break;
+        case 8:
+            params.sic_early = true;
+            params.depth = MFSK_DECODE_DEPTH_BP_ALL;
+            break;
+        case 9:
+            params.sic_rounds = 1;
+            params.depth = MFSK_DECODE_DEPTH_BP_ALL;
+            break;
+        default:
+            break;
     }
 
     size_t cap = 256;
@@ -205,7 +286,7 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecode(
         JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
         jint sample_rate, jboolean deep) {
     (void)cls;
-    return decode_impl(env, handle, audio, sample_rate, deep, 0.0f, 0.0f);
+    return decode_impl(env, handle, audio, sample_rate, deep, 0.0f, 0.0f, 0);
 }
 
 JNIEXPORT jobjectArray JNICALL
@@ -213,7 +294,17 @@ Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecodeBand(
         JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
         jint sample_rate, jboolean deep, jfloat freq_min, jfloat freq_max) {
     (void)cls;
-    return decode_impl(env, handle, audio, sample_rate, deep, freq_min, freq_max);
+    return decode_impl(env, handle, audio, sample_rate, deep, freq_min, freq_max, 0);
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_bg7yoz_ft8cn_wsjtx_WsjtxDecoder_nativeDecodeBandEx(
+        JNIEnv *env, jclass cls, jlong handle, jfloatArray audio,
+        jint sample_rate, jboolean deep, jfloat freq_min, jfloat freq_max,
+        jint profile) {
+    (void)cls;
+    return decode_impl(env, handle, audio, sample_rate, deep,
+                       freq_min, freq_max, profile);
 }
 
 JNIEXPORT void JNICALL

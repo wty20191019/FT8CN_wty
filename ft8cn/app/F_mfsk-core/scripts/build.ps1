@@ -20,7 +20,9 @@
 param(
     [string]$MfskCore = "D:\Desktop\mfsk-core",
     [string]$Out = (Split-Path -Parent $PSScriptRoot),
-    [string]$Ndk = $env:ANDROID_NDK_HOME
+    [string]$Ndk = $env:ANDROID_NDK_HOME,
+    [string]$Features = "mobile",
+    [switch]$NoLto
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,10 +63,20 @@ New-Item -ItemType Directory -Force -Path $include, $jniLibs | Out-Null
 # 使用的是与静态库同一版本的 ABI。
 Copy-Item (Join-Path $MfskCore "mfsk-ffi\include\mfsk.h") (Join-Path $include "mfsk.h") -Force
 
-Write-Host "==> cargo ndk build (mfsk-ffi, mobile)" -ForegroundColor Cyan
+Write-Host "==> cargo ndk build (mfsk-ffi, $Features)" -ForegroundColor Cyan
 Push-Location $MfskCore
 try {
-    cargo ndk -t arm64-v8a -t x86_64 build -p mfsk-ffi --release --no-default-features --features mobile
+    if ($NoLto) {
+        $env:CARGO_PROFILE_RELEASE_LTO = "false"
+        $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "16"
+    } else {
+        # 性能优先：跨 crate 的 fat LTO + 单 codegen unit。
+        # panic=abort 同时减小体积，并避免 Rust 的 unwind 跨 FFI 边界。
+        $env:CARGO_PROFILE_RELEASE_LTO = "fat"
+        $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "1"
+        $env:CARGO_PROFILE_RELEASE_PANIC = "abort"
+    }
+    cargo ndk -t arm64-v8a -t x86_64 build -p mfsk-ffi --release --no-default-features --features $Features
     if ($LASTEXITCODE -ne 0) { throw "cargo ndk build 失败 (exit $LASTEXITCODE)" }
 } finally {
     Pop-Location
@@ -85,7 +97,7 @@ foreach ($job in $jobs) {
     $so = Join-Path $abiDir "libwsjtx_Android.so"
 
     Write-Host "==> $($job.Abi): compile + link" -ForegroundColor Cyan
-    & $clang "--target=$($job.AndroidTarget)" -shared -fPIC -O2 -Wall -Wextra `
+    & $clang "--target=$($job.AndroidTarget)" -shared -fPIC -O3 -Wall -Wextra `
         "-I$include" -o $so $jni $staticLib `
         -llog -lm -ldl `
         "-Wl,-z,max-page-size=16384" "-Wl,--gc-sections" "-Wl,--exclude-libs,ALL"

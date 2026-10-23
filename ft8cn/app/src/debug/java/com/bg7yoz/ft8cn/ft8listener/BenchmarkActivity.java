@@ -51,6 +51,7 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
     private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
     private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
+    private static final String MODE_BAND = "band";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
     private static final long BENCH_UTC = 1750000000000L - (1750000000000L % 15000L);
@@ -60,6 +61,8 @@ public class BenchmarkActivity extends Activity {
     private boolean dumpRaw;
     private boolean checkText;
     private String fileFilter;
+    private float bandLo;
+    private float bandHi;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,10 +84,13 @@ public class BenchmarkActivity extends Activity {
         dumpRaw = getIntent().getBooleanExtra("raw", false);
         checkText = getIntent().getBooleanExtra("checktext", false);
         fileFilter = getIntent().getStringExtra("file");
+        bandLo = getIntent().getFloatExtra("fmin", 0f);
+        bandHi = getIntent().getFloatExtra("fmax", 0f);
 
         String benchDir = dir;
         final int bands = getIntent().getIntExtra("bands", 0);
         WsjtxBandDecoder.setBandCountForTest(bands);
+        WsjtxBandDecoder.setProfileForTest(getIntent().getIntExtra("profile", -1));
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -114,7 +120,8 @@ public class BenchmarkActivity extends Activity {
             if (s.equals(MODE_FAST) || s.equals(MODE_DEEP)
                     || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
                     || s.equals(MODE_WSJTX_PARALLEL)
-                    || s.equals(MODE_WSJTX_DEEP_PARALLEL)) {
+                    || s.equals(MODE_WSJTX_DEEP_PARALLEL)
+                    || s.equals(MODE_BAND)) {
                 modes.add(s);
             }
         }
@@ -277,6 +284,24 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP_PARALLEL:
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true);
+            case MODE_BAND:
+                List<Ft8Message> band = new ArrayList<>();
+                WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
+                        audio, FT8Common.SAMPLE_RATE, false,
+                        getIntent().getIntExtra("profile", 0), bandLo, bandHi);
+                for (WsjtxDecoder.Row row : rows) {
+                    Ft8Message msg = new Ft8Message(FT8Common.FT8_MODE);
+                    msg.isValid = true;
+                    msg.snr = Math.round(row.snr);
+                    msg.time_sec = row.dt;
+                    msg.freq_hz = row.freq;
+                    msg.extraInfo = row.text;
+                    msg.callsignTo = "";
+                    msg.callsignFrom = "";
+                    msg.maidenGrid = "";
+                    band.add(msg);
+                }
+                return band;
             default:
                 return new ArrayList<>();
         }

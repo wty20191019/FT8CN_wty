@@ -68,6 +68,21 @@ public final class WsjtxDecoder implements AutoCloseable {
         return toRows(lines);
     }
 
+    /**
+     * 解码一个时隙，只搜索指定频段，并使用指定的速度档位。
+     *
+     * @param profile 0=默认，1=关闭OSD，2=关闭OSD+单遍，3=单遍，4=严格门限+单遍
+     */
+    public Row[] decode(float[] audio, int sampleRate, boolean deep,
+                        float freqMin, float freqMax, int profile) {
+        if (handle == 0L) {
+            throw new IllegalStateException("decoder is closed");
+        }
+        String[] lines = nativeDecodeBandEx(handle, audio, sampleRate, deep,
+                freqMin, freqMax, profile);
+        return toRows(lines);
+    }
+
     public Row[] decode(float[] audio, int sampleRate) {
         return decode(audio, sampleRate, false);
     }
@@ -95,8 +110,14 @@ public final class WsjtxDecoder implements AutoCloseable {
     /** 一次性便捷方法，只解码指定频段。 */
     public static Row[] decodeOnce(float[] audio, int sampleRate, boolean deep,
                                    float freqMin, float freqMax) {
+        return decodeOnce(audio, sampleRate, deep, 0, freqMin, freqMax);
+    }
+
+    /** 一次性便捷方法，只解码指定频段并指定速度档位。 */
+    public static Row[] decodeOnce(float[] audio, int sampleRate, boolean deep,
+                                   int profile, float freqMin, float freqMax) {
         try (WsjtxDecoder decoder = new WsjtxDecoder(MODE_FT8)) {
-            return decoder.decode(audio, sampleRate, deep, freqMin, freqMax);
+            return decoder.decode(audio, sampleRate, deep, freqMin, freqMax, profile);
         }
     }
 
@@ -183,6 +204,11 @@ public final class WsjtxDecoder implements AutoCloseable {
     private static native String[] nativeDecodeBand(long handle, float[] audio,
                                                     int sampleRate, boolean deep,
                                                     float freqMin, float freqMax);
+
+    private static native String[] nativeDecodeBandEx(long handle, float[] audio,
+                                                      int sampleRate, boolean deep,
+                                                      float freqMin, float freqMax,
+                                                      int profile);
 
     private static native void nativeClose(long handle);
 

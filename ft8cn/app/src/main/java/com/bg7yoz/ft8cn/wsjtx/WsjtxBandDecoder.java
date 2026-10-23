@@ -19,40 +19,58 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * wsjtx（mfsk-core）的频谱分段并行解码器。
  *
- * <p>把 100~3000 Hz 按 CPU 核心数切成若干段，段间保留 100 Hz 重叠，
- * 每段用独立线程、独立 session 只搜索本频段。重叠 100 Hz（左右各 50 Hz）
- * 保证落在段边界的 FT8 信号至少被一段完整覆盖。</p>
+ * <p>把 100~3000 Hz 按段切分，段间保留 100 Hz 重叠，每段用独立线程、
+ * 独立 session 只搜索本频段。重叠 100 Hz（左右各 50 Hz）保证落在段边界
+ * 的 FT8 信号至少被一段完整覆盖。</p>
  *
  * <p>每段输出的频率就是绝对音频频率（没有移频），因此不需要做频率修正。
- * 唯一代价是每段都会各自做一次整时隙 FFT；段数超过核心数不会更快，
- * 所以段数上限取 CPU 核心数，并限制为最多 8 段。</p>
+ * 分段数默认最多 4 段：旧设备实测 8 段会同时做 8 次整时隙 FFT，内存带宽
+ * 和缓存争用反而抵消了并行收益。</p>
  */
 public final class WsjtxBandDecoder implements AutoCloseable {
     private static final String TAG = "WsjtxBandDecoder";
 
-    /** default FT8 search range of mfsk-core. */
+    /** mfsk-core 的 FT8 默认搜索范围。 */
     public static final float FREQ_MIN_HZ = 100f;
     public static final float FREQ_MAX_HZ = 3000f;
     /** 相邻频段的重叠宽度，左右各一半。 */
     public static final float OVERLAP_HZ = 100f;
 
-    /** 段数上限，避免在超多核设备上把整时隙 FFT 重复太多次。 */
+    /** 段数上限。 */
     private static final int MAX_BANDS = 8;
-    /** 每段核心宽度下限（不含重叠），保证一段至少能完整容纳多个 FT8 信号。 */
+    /** 自动分段时的默认上限。 */
+    private static final int DEFAULT_BANDS = 4;
+    /** 每段核心宽度下限（不含重叠）。 */
     private static final float MIN_CORE_WIDTH_HZ = 200f;
+
+    /**
+     * 多核挡位的生产默认速度档位：2 轮 SIC。
+     * 实测召回率约 88~89%，耗时约为 3 轮的 1/3。
+     */
+    private static final int DEFAULT_PROFILE = 6;
 
     /** 仅基准测试用：大于 0 时强制使用该段数。 */
     private static volatile int testBandCount = 0;
+
+    /** 仅基准测试用：>=0 时强制速度档位，-1 表示使用生产默认。 */
+    private static volatile int testProfile = -1;
 
     /** 仅基准测试用：强制段数，0 表示恢复自动。 */
     public static void setBandCountForTest(int bandCount) {
         testBandCount = Math.max(0, bandCount);
     }
 
+    /** 仅基准测试用：强制速度档位，-1 表示使用生产默认。 */
+    public static void setProfileForTest(int profile) {
+        testProfile = Math.max(-1, profile);
+    }
+
     private final ExecutorService pool;
     private final float[] bandLow;
     private final float[] bandHigh;
     private final int bandCount;
+    private final int profile;
+    private final WsjtxDecoder[] decoders;
 
     public WsjtxBandDecoder() {
         this(FREQ_MIN_HZ, FREQ_MAX_HZ, OVERLAP_HZ);
@@ -65,14 +83,16 @@ public final class WsjtxBandDecoder implements AutoCloseable {
 
         int cores = Runtime.getRuntime().availableProcessors();
         int n = testBandCount > 0 ? testBandCount
-                : Math.max(1, Math.min(cores, MAX_BANDS));
+                : Math.max(1, Math.min(cores, DEFAULT_BANDS));
         n = Math.max(1, Math.min(n, MAX_BANDS));
         n = Math.min(n, Math.max(1,
                 (int) ((freqMax - freqMin) / MIN_CORE_WIDTH_HZ)));
         bandCount = n;
+        profile = testProfile >= 0 ? testProfile : DEFAULT_PROFILE;
 
         bandLow = new float[n];
         bandHigh = new float[n];
+        decoders = new WsjtxDecoder[n];
         float coreWidth = (freqMax - freqMin) / n;
         for (int i = 0; i < n; i++) {
             float lo = freqMin + i * coreWidth - overlap / 2f;
@@ -92,8 +112,8 @@ public final class WsjtxBandDecoder implements AutoCloseable {
         });
 
         Log.i(TAG, String.format(Locale.US,
-                "频谱分段解码：%d 段（CPU %d 核），范围 %.0f~%.0f Hz，重叠 %.0f Hz",
-                n, cores, freqMin, freqMax, overlap));
+                "频谱分段解码：%d 段（CPU %d 核），范围 %.0f~%.0f Hz，重叠 %.0f Hz，profile %d",
+                n, cores, freqMin, freqMax, overlap, profile));
     }
 
     public int getBandCount() {
@@ -105,22 +125,26 @@ public final class WsjtxBandDecoder implements AutoCloseable {
      *
      * @return 合并、去重后的解码行；至少一个频段成功才返回，全部失败时抛异常
      */
-    public WsjtxDecoder.Row[] decode(final float[] audio, final int sampleRate,
-                                     final boolean deep) throws Exception {
-        if (bandCount <= 1) {
-            return WsjtxDecoder.decodeOnce(audio, sampleRate, deep,
-                    bandLow[0], bandHigh[0]);
+    public synchronized WsjtxDecoder.Row[] decode(final float[] audio, final int sampleRate,
+                                                  final boolean deep) throws Exception {
+        // 每段复用自己的 session，避免每个时隙反复 open/close。
+        for (int i = 0; i < bandCount; i++) {
+            getDecoder(i);
         }
 
-        List<Future<WsjtxDecoder.Row[]>> futures =
-                new ArrayList<>(bandCount);
+        if (bandCount <= 1) {
+            return getDecoder(0).decode(audio, sampleRate, deep,
+                    bandLow[0], bandHigh[0], profile);
+        }
+
+        List<Future<WsjtxDecoder.Row[]>> futures = new ArrayList<>(bandCount);
         for (int i = 0; i < bandCount; i++) {
-            final float lo = bandLow[i];
-            final float hi = bandHigh[i];
+            final int band = i;
             futures.add(pool.submit(new Callable<WsjtxDecoder.Row[]>() {
                 @Override
                 public WsjtxDecoder.Row[] call() {
-                    return WsjtxDecoder.decodeOnce(audio, sampleRate, deep, lo, hi);
+                    return getDecoder(band).decode(audio, sampleRate, deep,
+                            bandLow[band], bandHigh[band], profile);
                 }
             }));
         }
@@ -155,6 +179,13 @@ public final class WsjtxBandDecoder implements AutoCloseable {
         return dedupe(all);
     }
 
+    private WsjtxDecoder getDecoder(int index) {
+        if (decoders[index] == null) {
+            decoders[index] = new WsjtxDecoder(WsjtxDecoder.MODE_FT8);
+        }
+        return decoders[index];
+    }
+
     /**
      * 重叠区同一报文会被相邻两段各解出一次，这里按文本去重并保留 SNR 较高的一条。
      * 与 FT8CN 原来的 checkMessageSame 语义一致。
@@ -181,7 +212,10 @@ public final class WsjtxBandDecoder implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        for (WsjtxDecoder decoder : decoders) {
+            if (decoder != null) decoder.close();
+        }
         pool.shutdownNow();
     }
 }
