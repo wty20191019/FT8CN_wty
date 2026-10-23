@@ -103,6 +103,18 @@ public class SpectrumFragment extends Fragment {
                         GeneralVariables.getStringFromResource(resId), aLong));
             }
         });
+
+        //混合模式：显示 快速+wsjt 两段耗时
+        mainViewModel.ft8SignalListener.mixedDecodeTimeText.observe(getViewLifecycleOwner(), new Observer<String>() {
+            @Override
+            public void onChanged(String s) {
+                if (s != null) {
+                    binding.decodeDurationTextView.setText(String.format(
+                            GeneralVariables.getStringFromResource(
+                                    R.string.mixed_decode_time_format), s));
+                }
+            }
+        });
         //观察解码的变化
         mainViewModel.mutableIsDecoding.observe(getViewLifecycleOwner(), new Observer<Boolean>() {
             @Override

@@ -39,6 +39,8 @@ public class FT8SignalListener {
     private final OnFt8Listen onFt8Listen;//当开始监听，解码结束后触发的事件
     //private long band;
     public MutableLiveData<Long> decodeTimeSec = new MutableLiveData<>();//解码的时长
+    //混合模式的耗时文本：快速+wsjt
+    public MutableLiveData<String> mixedDecodeTimeText = new MutableLiveData<>();
     public long timeSec=0;//解码的时长
 
     private OnWaveDataListener onWaveDataListener;
@@ -62,6 +64,8 @@ public class FT8SignalListener {
         final long deadline;
         final Set<String> seen = Collections.synchronizedSet(new HashSet<String>());
         final AtomicInteger pending = new AtomicInteger(2);
+        volatile long fastMs = -1;
+        volatile long wsjtxMs = -1;
 
         MixedSlot(long utc, long deadline) {
             this.utc = utc;
@@ -184,13 +188,16 @@ public class FT8SignalListener {
             ArrayList<Ft8Message> msgs = decodeFastMessages(utc, audio);
             msgs = filterNewMessages(msgs, slot.seen);
             timeSec = System.currentTimeMillis() - start;
-            decodeTimeSec.postValue(timeSec);
+            slot.fastMs = timeSec;
             // 快速结果：立即显示，并允许触发自动程序
             safeAfterDecode(utc, msgs, msgs, false);
+            publishMixedTime(slot);
             Log.d(TAG, String.format("混合快速完成：%d 条，%d 毫秒",
                     msgs.size(), timeSec));
         } catch (Throwable e) {
             Log.e(TAG, "混合快速解码异常：" + e.getMessage(), e);
+            slot.fastMs = System.currentTimeMillis() - start;
+            publishMixedTime(slot);
         } finally {
             finishMixedPart(slot);
         }
@@ -210,27 +217,44 @@ public class FT8SignalListener {
                 }
             }
             long done = System.currentTimeMillis();
+            slot.wsjtxMs = done - start;
             if (msgs == null) {
                 Log.d(TAG, "混合wsjtx不可用，只使用快速结果");
+                publishMixedTime(slot);
                 return;
             }
             if (done > slot.deadline) {
                 Log.d(TAG, String.format(
                         "混合wsjtx超时（%d 毫秒 > %d 毫秒），只使用快速结果",
                         done - start, slot.deadline - start));
+                publishMixedTime(slot);
                 return;
             }
             msgs = filterNewMessages(msgs, slot.seen);
             timeSec = done - start;
-            decodeTimeSec.postValue(timeSec);
             // wsjtx结果：只补充显示，不触发自动程序
             safeAfterDecode(utc, msgs, msgs, true);
+            publishMixedTime(slot);
             Log.d(TAG, String.format("混合wsjtx完成：%d 条，%d 毫秒",
                     msgs.size(), timeSec));
         } catch (Throwable e) {
             Log.e(TAG, "混合wsjtx解码异常：" + e.getMessage(), e);
+            slot.wsjtxMs = System.currentTimeMillis() - start;
+            publishMixedTime(slot);
         } finally {
             finishMixedPart(slot);
+        }
+    }
+
+    /**
+     * 两个耗时都出来后显示：快速毫秒+wsjtx毫秒。
+     */
+    private void publishMixedTime(MixedSlot slot) {
+        long fastMs = slot.fastMs;
+        long wsjtxMs = slot.wsjtxMs;
+        if (fastMs >= 0 && wsjtxMs >= 0) {
+            mixedDecodeTimeText.postValue(String.format(Locale.US,
+                    "%d+%d ms", fastMs, wsjtxMs));
         }
     }
 

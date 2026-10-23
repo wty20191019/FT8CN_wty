@@ -610,11 +610,16 @@ public class LogHttpServer extends NanoHTTPD {
                         ? GeneralVariables.getStringFromResource(R.string.html_recording)
                         : GeneralVariables.getStringFromResource(R.string.html_no_recording));
 
-        String decodeTimeText = String.format(
-                GeneralVariables.getStringFromResource(R.string.html_milliseconds)
-                , mainViewModel.ft8SignalListener.decodeTimeSec.getValue());
-        if (GeneralVariables.isMixedDecodeMode()) {
-            decodeTimeText += " " + GeneralVariables.getStringFromResource(R.string.mixed_mode_short);
+        String decodeTimeText;
+        if (GeneralVariables.isMixedDecodeMode()
+                && mainViewModel.ft8SignalListener.mixedDecodeTimeText.getValue() != null) {
+            decodeTimeText = String.format(
+                    GeneralVariables.getStringFromResource(R.string.mixed_decode_time_format)
+                    , mainViewModel.ft8SignalListener.mixedDecodeTimeText.getValue());
+        } else {
+            decodeTimeText = String.format(
+                    GeneralVariables.getStringFromResource(R.string.html_milliseconds)
+                    , mainViewModel.ft8SignalListener.decodeTimeSec.getValue());
         }
         HtmlContext.tableKeyRow(result, true
                 , GeneralVariables.getStringFromResource(R.string.html_time_consuming_for_this_decoding)

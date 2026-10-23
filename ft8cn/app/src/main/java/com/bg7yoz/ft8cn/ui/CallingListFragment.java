@@ -174,6 +174,17 @@ public class CallingListFragment extends Fragment {
             }
         });
 
+        //混合模式：显示 快速+wsjt 两段耗时
+        mainViewModel.ft8SignalListener.mixedDecodeTimeText.observe(getViewLifecycleOwner(), new Observer<String>() {
+            @Override
+            public void onChanged(String s) {
+                if (s != null) {
+                    binding.isDecodingTextView.setText(String.format(
+                            getString(R.string.mixed_decode_time_format), s));
+                }
+            }
+        });
+
         //以闪烁动画的方式显示录音状态
         mainViewModel.mutableIsRecording.observe(getViewLifecycleOwner(), new Observer<Boolean>() {
             @Override

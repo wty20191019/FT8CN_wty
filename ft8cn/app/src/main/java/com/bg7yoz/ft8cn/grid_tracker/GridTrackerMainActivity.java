@@ -217,12 +217,19 @@ public class GridTrackerMainActivity extends AppCompatActivity {
                     callMessagesRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
                 }
 
+                String timeText;
+                if (GeneralVariables.isMixedDecodeMode()
+                        && mainViewModel.ft8SignalListener.mixedDecodeTimeText.getValue() != null) {
+                    timeText = String.format(getString(R.string.mixed_decode_time_format),
+                            mainViewModel.ft8SignalListener.mixedDecodeTimeText.getValue());
+                } else {
+                    timeText = String.format(getString(R.string.decoding_takes_milliseconds),
+                            mainViewModel.ft8SignalListener.decodeTimeSec.getValue());
+                }
                 binding.gridMessageTextView.setText(String.format("%s %s"
                         , String.format(GeneralVariables.getStringFromResource(
                                         R.string.tracker_decoded_new)
-                                , mainViewModel.currentDecodeCount), String.format(
-                                getString(R.string.decoding_takes_milliseconds)
-                                , mainViewModel.ft8SignalListener.decodeTimeSec.getValue())));
+                                , mainViewModel.currentDecodeCount), timeText));
 
 
                 //画电台之间的连线
