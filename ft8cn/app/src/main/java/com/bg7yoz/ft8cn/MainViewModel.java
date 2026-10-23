@@ -134,10 +134,16 @@ public class MainViewModel extends ViewModel {
     public MutableLiveData<Boolean> mutableIsFlexRadio = new MutableLiveData<>();//是不是flex电台
     public MutableLiveData<Boolean> mutableIsXieguRadio = new MutableLiveData<>();//是不是flex电台
 
-    private final ExecutorService getQTHThreadPool = Executors.newCachedThreadPool();
-    private final ExecutorService sendWaveDataThreadPool = Executors.newCachedThreadPool();
+    // 这两个任务都不需要并发执行。使用单线程池，避免长时间运行时
+    // 数据库/电台操作变慢后 cachedThreadPool 不断创建线程。
+    private final ExecutorService getQTHThreadPool
+            = Executors.newSingleThreadExecutor(r -> new Thread(r, "ft8-qth"));
+    private final ExecutorService sendWaveDataThreadPool
+            = Executors.newSingleThreadExecutor(r -> new Thread(r, "ft8-send-wave"));
     private final GetQTHRunnable getQTHRunnable = new GetQTHRunnable(this);
     private final SendWaveDataRunnable sendWaveDataRunnable = new SendWaveDataRunnable();
+    private final java.util.concurrent.atomic.AtomicBoolean getQTHScheduled
+            = new java.util.concurrent.atomic.AtomicBoolean(false);
 
 
     //用于显示生成共享日志过程的变量
@@ -337,7 +343,10 @@ public class MainViewModel extends ViewModel {
 
 
                 getQTHRunnable.messages = messages;
-                getQTHThreadPool.execute(getQTHRunnable);//用线程池的方式查询归属地
+                // 上一次归属地查询还没结束时不再排队；它完成后会处理最新一批。
+                if (getQTHScheduled.compareAndSet(false, true)) {
+                    getQTHThreadPool.execute(getQTHRunnable);
+                }
 
                 //此变量也是告诉消息列表变化的
                 mutable_Decoded_Counter.postValue(
@@ -1081,9 +1090,13 @@ public class MainViewModel extends ViewModel {
 
         @Override
         public void run() {
-            CallsignDatabase.getMessagesLocation(
-                    GeneralVariables.callsignDatabase.getDb(), messages);
-            mainViewModel.mutableFt8MessageList.postValue(mainViewModel.ft8Messages);
+            try {
+                CallsignDatabase.getMessagesLocation(
+                        GeneralVariables.callsignDatabase.getDb(), messages);
+                mainViewModel.mutableFt8MessageList.postValue(mainViewModel.ft8Messages);
+            } finally {
+                mainViewModel.getQTHScheduled.set(false);
+            }
         }
     }
 

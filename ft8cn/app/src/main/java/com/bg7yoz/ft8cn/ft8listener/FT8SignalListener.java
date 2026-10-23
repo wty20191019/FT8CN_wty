@@ -24,6 +24,7 @@ import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FT8SignalListener {
     private static final String TAG = "FT8SignalListener";
@@ -43,6 +44,8 @@ public class FT8SignalListener {
 
     //wsjtx解码库是否可用。armeabi-v7a/x86没有对应的so，第一次失败后不再尝试
     private volatile boolean wsjtxAvailable = true;
+    // 防止上一时隙解码尚未结束时又启动一轮，长跑时避免线程堆积
+    private final AtomicBoolean decoding = new AtomicBoolean(false);
     //频谱分段并行解码器，首次使用 wsjtx 多核挡位时创建
     private WsjtxBandDecoder wsjtxBandDecoder;
 
@@ -125,9 +128,14 @@ public class FT8SignalListener {
 //        int data[][] = reader.getData();
         //----------------------------------------------------------
 
+        if (!decoding.compareAndSet(false, true)) {
+            Log.w(TAG, "上一轮解码尚未结束，跳过本时隙");
+            return;
+        }
         new Thread(new Runnable() {
             @Override
             public void run() {
+                try {
                 long time = System.currentTimeMillis();
                 if (onFt8Listen != null) {
                     onFt8Listen.beforeListen(utc);
@@ -164,6 +172,9 @@ public class FT8SignalListener {
                 }
 
                 Log.d(TAG, String.format("解码耗时:%d毫秒", System.currentTimeMillis() - time));
+                } finally {
+                    decoding.set(false);
+                }
             }
         }).start();
     }
@@ -254,6 +265,7 @@ public class FT8SignalListener {
         //其实这种方式要注意一个问题，在一个周期之内，必须解码完毕，否则新的解码又要开始了
         long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE
                 , voiceData.length, true);
+        try {
         DecoderMonitorPressFloat(voiceData, ft8Decoder);//读入音频数据
 
         ArrayList<Ft8Message> allMsg = new ArrayList<>();
@@ -285,9 +297,11 @@ public class FT8SignalListener {
             } while (msgs.size() > 0);
 
         }
-        //移到finalize() 方法中调用了
-        DeleteDecoder(ft8Decoder);
         return allMsg;
+        } finally {
+            // 即使解码过程中异常退出，也必须释放原生解码器
+            DeleteDecoder(ft8Decoder);
+        }
     }
 
 
