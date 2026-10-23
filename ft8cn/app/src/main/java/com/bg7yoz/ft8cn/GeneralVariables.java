@@ -48,6 +48,7 @@ public class GeneralVariables {
     public static final int DECODE_MODE_WSJTX_DEEP = 3;//wsjtx深度（mfsk-core，BP_ALL_OSD + DEEP门限）
     public static final int DECODE_MODE_WSJTX_PARALLEL = 4;//wsjtx普通多核（频谱分段并行）
     public static final int DECODE_MODE_WSJTX_DEEP_PARALLEL = 5;//wsjtx深度多核（频谱分段并行）
+    public static final int DECODE_MODE_HYBRID_DEEP_FAST = 6;//提前500ms深度多核 + 0ms快速解码
     public static int decodeMode = DECODE_MODE_FAST;//当前解码挡位
 
     public static boolean audioOutput32Bit = true;//音频输出类型true=float,false=int16
@@ -520,7 +521,15 @@ public class GeneralVariables {
         return decodeMode == DECODE_MODE_WSJTX
                 || decodeMode == DECODE_MODE_WSJTX_DEEP
                 || decodeMode == DECODE_MODE_WSJTX_PARALLEL
-                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
+                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL
+                || decodeMode == DECODE_MODE_HYBRID_DEEP_FAST;
+    }
+
+    /**
+     * 当前挡位是不是“提前深度多核 + 快速解码”混合挡位。
+     */
+    public static boolean isHybridDecodeMode() {
+        return decodeMode == DECODE_MODE_HYBRID_DEEP_FAST;
     }
 
     /**
@@ -560,6 +569,8 @@ public class GeneralVariables {
                 return getStringFromResource(R.string.wsjtx_parallel_mode);
             case DECODE_MODE_WSJTX_DEEP_PARALLEL:
                 return getStringFromResource(R.string.wsjtx_deep_parallel_mode);
+            case DECODE_MODE_HYBRID_DEEP_FAST:
+                return getStringFromResource(R.string.hybrid_deep_fast_mode);
             case DECODE_MODE_FAST:
             default:
                 return getStringFromResource(R.string.fast_mode);

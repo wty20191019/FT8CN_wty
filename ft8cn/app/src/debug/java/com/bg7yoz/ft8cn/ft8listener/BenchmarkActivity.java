@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 仅 debug 包使用的解码召回率基准 Activity（不进入 release）。
@@ -52,6 +53,7 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
     private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
     private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
+    private static final String MODE_HYBRID = "hybrid";
     private static final String MODE_BAND = "band";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
@@ -122,6 +124,7 @@ public class BenchmarkActivity extends Activity {
                     || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
                     || s.equals(MODE_WSJTX_PARALLEL)
                     || s.equals(MODE_WSJTX_DEEP_PARALLEL)
+                    || s.equals(MODE_HYBRID)
                     || s.equals(MODE_BAND)) {
                 modes.add(s);
             }
@@ -287,6 +290,75 @@ public class BenchmarkActivity extends Activity {
     }
 
     /**
+     * 模拟混合挡位：深度多核先跑 500 ms，再启动快速解码，最后合并且去重。
+     */
+    private List<Ft8Message> decodeHybrid(FT8SignalListener listener,
+                                          float[] audio, long start) {
+        int partialSamples = FT8Common.SAMPLE_RATE * 14500 / 1000;
+        final float[] partial = new float[FT8Common.SAMPLE_RATE * 15];
+        System.arraycopy(audio, 0, partial, 0,
+                Math.min(partialSamples, audio.length));
+
+        final List<Ft8Message> deep = new ArrayList<>();
+        final long deadline = System.currentTimeMillis() + 500;
+        final AtomicBoolean fastStarted = new AtomicBoolean(false);
+        Thread deepThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    long t0 = System.currentTimeMillis();
+                    List<Ft8Message> rows = listener.decodeByWsjtxParallel(
+                            BENCH_UTC, partial, true);
+                    long done = System.currentTimeMillis();
+                    if (rows != null && done <= deadline && !fastStarted.get()) {
+                        deep.addAll(rows);
+                        Log.i(TAG, String.format("hybrid deep kept: %d ms", done - t0));
+                    } else {
+                        Log.i(TAG, String.format(
+                                "hybrid deep discarded: %d ms (deadline 500 ms)",
+                                done - t0));
+                    }
+                } catch (Throwable e) {
+                    Log.e(TAG, "hybrid deep failed: " + e.getMessage(), e);
+                }
+            }
+        });
+        deepThread.start();
+
+        // 深度提前 500 ms，快速在时隙结束时启动
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        fastStarted.set(true);
+        List<Ft8Message> fast = listener.decodeByLegacy(
+                BENCH_UTC, audio, false, start);
+
+        try {
+            deepThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<Ft8Message> merged = new ArrayList<>();
+        for (List<Ft8Message> list : new List[]{deep, fast}) {
+            for (Ft8Message msg : list) {
+                try {
+                    String key = makeKey(msg.getMessageText());
+                    if (!key.isEmpty() && seen.add(key)) {
+                        merged.add(msg);
+                    }
+                } catch (Throwable e) {
+                    Log.w(TAG, "hybrid merge failed: " + e.getMessage());
+                }
+            }
+        }
+        return merged;
+    }
+
+    /**
      * 按挡位调用正式的解码路径。
      *
      * @return null 表示 wsjtx 原生库不可用
@@ -306,6 +378,8 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP_PARALLEL:
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true);
+            case MODE_HYBRID:
+                return decodeHybrid(listener, audio, start);
             case MODE_BAND:
                 List<Ft8Message> band = new ArrayList<>();
                 WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
