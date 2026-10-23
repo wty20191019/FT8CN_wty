@@ -2199,10 +2199,11 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                         int mode = Integer.parseInt(result);
                         if (mode == GeneralVariables.DECODE_MODE_FAST
                                 || mode == GeneralVariables.DECODE_MODE_DEEP
-                                || mode == GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
+                                || mode == GeneralVariables.DECODE_MODE_WSJTX_PARALLEL
+                                || mode == GeneralVariables.DECODE_MODE_MIXED) {
                             GeneralVariables.decodeMode = mode;
                         } else if (mode >= 2) {
-                            // 旧版的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核
+                            // 旧版的单实例 wsjtx / 深度多核统一迁移到 wsjtx普通多核
                             GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
                         }
                     } catch (NumberFormatException e) {

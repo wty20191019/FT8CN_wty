@@ -96,8 +96,11 @@ public class SpectrumFragment extends Fragment {
             @SuppressLint("DefaultLocale")
             @Override
             public void onChanged(Long aLong) {
+                int resId = GeneralVariables.isMixedDecodeMode()
+                        ? R.string.decoding_takes_milliseconds_mixed
+                        : R.string.decoding_takes_milliseconds;
                 binding.decodeDurationTextView.setText(String.format(
-                        GeneralVariables.getStringFromResource(R.string.decoding_takes_milliseconds), aLong));
+                        GeneralVariables.getStringFromResource(resId), aLong));
             }
         });
         //观察解码的变化

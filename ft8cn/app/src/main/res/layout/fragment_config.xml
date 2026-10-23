@@ -1631,6 +1631,15 @@
                                 android:textColor="@color/text_view_color"
                                 android:textSize="12sp" />
 
+                            <RadioButton
+                                android:id="@+id/mixedDecodeRadioButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="?attr/colorPrimary"
+                                android:text="@string/mixed_mode"
+                                android:textColor="@color/text_view_color"
+                                android:textSize="12sp" />
+
 
 
                     </com.bg7yoz.ft8cn.ui.RadioGroupFt8cn>

@@ -610,10 +610,15 @@ public class LogHttpServer extends NanoHTTPD {
                         ? GeneralVariables.getStringFromResource(R.string.html_recording)
                         : GeneralVariables.getStringFromResource(R.string.html_no_recording));
 
+        String decodeTimeText = String.format(
+                GeneralVariables.getStringFromResource(R.string.html_milliseconds)
+                , mainViewModel.ft8SignalListener.decodeTimeSec.getValue());
+        if (GeneralVariables.isMixedDecodeMode()) {
+            decodeTimeText += " " + GeneralVariables.getStringFromResource(R.string.mixed_mode_short);
+        }
         HtmlContext.tableKeyRow(result, true
                 , GeneralVariables.getStringFromResource(R.string.html_time_consuming_for_this_decoding)
-                , String.format(GeneralVariables.getStringFromResource(R.string.html_milliseconds)
-                        , mainViewModel.ft8SignalListener.decodeTimeSec.getValue()));
+                , decodeTimeText);
 
         HtmlContext.tableKeyRow(result, false
                 , GeneralVariables.getStringFromResource(R.string.html_average_delay_time_of_this_cycle)

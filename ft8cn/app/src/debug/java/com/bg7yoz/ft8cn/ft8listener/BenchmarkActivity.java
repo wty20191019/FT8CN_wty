@@ -7,6 +7,7 @@ import android.widget.TextView;
 
 import com.bg7yoz.ft8cn.FT8Common;
 import com.bg7yoz.ft8cn.Ft8Message;
+import com.bg7yoz.ft8cn.GeneralVariables;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
@@ -52,6 +53,7 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
     private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
     private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
+    private static final String MODE_MIXED = "mixed";
     private static final String MODE_BAND = "band";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
@@ -122,6 +124,7 @@ public class BenchmarkActivity extends Activity {
                     || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
                     || s.equals(MODE_WSJTX_PARALLEL)
                     || s.equals(MODE_WSJTX_DEEP_PARALLEL)
+                    || s.equals(MODE_MIXED)
                     || s.equals(MODE_BAND)) {
                 modes.add(s);
             }
@@ -287,6 +290,57 @@ public class BenchmarkActivity extends Activity {
     }
 
     /**
+     * 混合模式：快速 + wsjtx普通多核并行，超过发射延时则丢弃 wsjtx。
+     */
+    private List<Ft8Message> decodeMixed(FT8SignalListener listener,
+                                         float[] audio, long start) {
+        final List<Ft8Message> deep = new ArrayList<>();
+        final long deadline = System.currentTimeMillis()
+                + Math.max(200, GeneralVariables.transmitDelay);
+        Thread deepThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    List<Ft8Message> rows = listener.decodeByWsjtxParallel(
+                            BENCH_UTC, audio, false);
+                    long done = System.currentTimeMillis();
+                    if (rows != null && done <= deadline) {
+                        deep.addAll(rows);
+                        Log.i(TAG, "mixed wsjtx kept: " + (done - (deadline - GeneralVariables.transmitDelay)) + " ms");
+                    } else {
+                        Log.i(TAG, "mixed wsjtx discarded (timeout)");
+                    }
+                } catch (Throwable e) {
+                    Log.e(TAG, "mixed wsjtx failed: " + e.getMessage(), e);
+                }
+            }
+        });
+        deepThread.start();
+        List<Ft8Message> fast = listener.decodeByLegacy(BENCH_UTC, audio, false, start);
+        try {
+            deepThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<Ft8Message> merged = new ArrayList<>();
+        for (List<Ft8Message> list : new List[]{fast, deep}) {
+            for (Ft8Message msg : list) {
+                try {
+                    String key = makeKey(msg.getMessageText());
+                    if (!key.isEmpty() && seen.add(key)) {
+                        merged.add(msg);
+                    }
+                } catch (Throwable e) {
+                    Log.w(TAG, "mixed merge failed: " + e.getMessage());
+                }
+            }
+        }
+        return merged;
+    }
+
+    /**
      * 按挡位调用正式的解码路径。
      *
      * @return null 表示 wsjtx 原生库不可用
@@ -306,6 +360,8 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP_PARALLEL:
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true);
+            case MODE_MIXED:
+                return decodeMixed(listener, audio, start);
             case MODE_BAND:
                 List<Ft8Message> band = new ArrayList<>();
                 WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(

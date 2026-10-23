@@ -24,6 +24,13 @@ import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FT8SignalListener {
     private static final String TAG = "FT8SignalListener";
@@ -45,6 +52,22 @@ public class FT8SignalListener {
     private volatile boolean wsjtxAvailable = true;
     //频谱分段并行解码器，首次使用 wsjtx 多核挡位时创建
     private WsjtxBandDecoder wsjtxBandDecoder;
+    //混合模式：快速 + wsjtx普通多核
+    private WsjtxBandDecoder mixedBandDecoder;
+    private final Map<Long, MixedSlot> mixedSlots = new ConcurrentHashMap<>();
+    private final Object callbackLock = new Object();
+
+    private static final class MixedSlot {
+        final long utc;
+        final long deadline;
+        final Set<String> seen = Collections.synchronizedSet(new HashSet<String>());
+        final AtomicInteger pending = new AtomicInteger(2);
+
+        MixedSlot(long utc, long deadline) {
+            this.utc = utc;
+            this.deadline = deadline;
+        }
+    }
 
 
     static {
@@ -105,15 +128,171 @@ public class FT8SignalListener {
         Log.d(TAG, "开始录音...");
 
         if (onWaveDataListener != null) {
-            onWaveDataListener.getVoiceData(FT8Common.FT8_SLOT_TIME_MILLISECOND, true
-                    , new OnGetVoiceDataDone() {
-                        @Override
-                        public void onGetDone(float[] data) {
-                            Log.d(TAG, String.format("开始解码...###,数据长度：%d",data.length));
-                            decodeFt8(utc, data);
-                        }
-                    });
+            if (GeneralVariables.isMixedDecodeMode()) {
+                runRecordeMixed(utc);
+            } else {
+                onWaveDataListener.getVoiceData(FT8Common.FT8_SLOT_TIME_MILLISECOND, true
+                        , new OnGetVoiceDataDone() {
+                            @Override
+                            public void onGetDone(float[] data) {
+                                Log.d(TAG, String.format("开始解码...###,数据长度：%d",data.length));
+                                decodeFt8(utc, data);
+                            }
+                        });
+            }
         }
+    }
+
+    /**
+     * 混合模式：时隙结束立刻同时启动
+     * 1. 原 FT8CN 快速解码（占 1 个核）
+     * 2. wsjtx 普通多核（占其余核）
+     * 在发射延时（transmitDelay）结束前整理结果；wsjtx 超时则只用快速结果。
+     */
+    private void runRecordeMixed(final long utc) {
+        pruneMixedSlots(utc);
+        long budget = Math.max(200, GeneralVariables.transmitDelay);
+        final MixedSlot slot = new MixedSlot(utc, System.currentTimeMillis() + budget);
+        mixedSlots.put(utc, slot);
+
+        onWaveDataListener.getVoiceData(FT8Common.FT8_SLOT_TIME_MILLISECOND, true,
+                new OnGetVoiceDataDone() {
+                    @Override
+                    public void onGetDone(final float[] data) {
+                        if (onFt8Listen != null) {
+                            onFt8Listen.beforeListen(utc);
+                        }
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                decodeMixedFast(utc, data, slot);
+                            }
+                        }).start();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                decodeMixedWsjtx(utc, data, slot);
+                            }
+                        }).start();
+                    }
+                });
+    }
+
+    private void decodeMixedFast(long utc, float[] audio, MixedSlot slot) {
+        long start = System.currentTimeMillis();
+        try {
+            ArrayList<Ft8Message> msgs = decodeFastMessages(utc, audio);
+            msgs = filterNewMessages(msgs, slot.seen);
+            timeSec = System.currentTimeMillis() - start;
+            decodeTimeSec.postValue(timeSec);
+            // 快速结果：立即显示，并允许触发自动程序
+            safeAfterDecode(utc, msgs, msgs, false);
+            Log.d(TAG, String.format("混合快速完成：%d 条，%d 毫秒",
+                    msgs.size(), timeSec));
+        } catch (Throwable e) {
+            Log.e(TAG, "混合快速解码异常：" + e.getMessage(), e);
+        } finally {
+            finishMixedPart(slot);
+        }
+    }
+
+    private void decodeMixedWsjtx(long utc, float[] audio, MixedSlot slot) {
+        long start = System.currentTimeMillis();
+        try {
+            ArrayList<Ft8Message> msgs = null;
+            if (wsjtxAvailable) {
+                msgs = decodeByWsjtxParallel(utc, audio, false, getMixedBandDecoder());
+                if (msgs == null) {
+                    msgs = decodeByWsjtx(utc, audio, false);
+                }
+                if (msgs == null) {
+                    wsjtxAvailable = false;
+                }
+            }
+            long done = System.currentTimeMillis();
+            if (msgs == null) {
+                Log.d(TAG, "混合wsjtx不可用，只使用快速结果");
+                return;
+            }
+            if (done > slot.deadline) {
+                Log.d(TAG, String.format(
+                        "混合wsjtx超时（%d 毫秒 > %d 毫秒），只使用快速结果",
+                        done - start, slot.deadline - start));
+                return;
+            }
+            msgs = filterNewMessages(msgs, slot.seen);
+            timeSec = done - start;
+            decodeTimeSec.postValue(timeSec);
+            // wsjtx结果：只补充显示，不触发自动程序
+            safeAfterDecode(utc, msgs, msgs, true);
+            Log.d(TAG, String.format("混合wsjtx完成：%d 条，%d 毫秒",
+                    msgs.size(), timeSec));
+        } catch (Throwable e) {
+            Log.e(TAG, "混合wsjtx解码异常：" + e.getMessage(), e);
+        } finally {
+            finishMixedPart(slot);
+        }
+    }
+
+    private ArrayList<Ft8Message> decodeFastMessages(long utc, float[] audio) {
+        long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE, audio.length, true);
+        try {
+            DecoderMonitorPressFloat(audio, ft8Decoder);
+            return runDecode(ft8Decoder, utc, false);
+        } finally {
+            DeleteDecoder(ft8Decoder);
+        }
+    }
+
+    private ArrayList<Ft8Message> filterNewMessages(ArrayList<Ft8Message> msgs,
+                                                    Set<String> seen) {
+        ArrayList<Ft8Message> out = new ArrayList<>();
+        if (msgs == null) return out;
+
+        synchronized (seen) {
+            for (Ft8Message msg : msgs) {
+                try {
+                    String text = msg.getMessageText();
+                    if (text == null || text.isEmpty()) continue;
+                    String key = text.trim().toUpperCase(Locale.US);
+                    if (seen.add(key)) {
+                        out.add(msg);
+                    }
+                } catch (Throwable e) {
+                    Log.w(TAG, "filterNewMessages: " + e.getMessage());
+                }
+            }
+        }
+        return out;
+    }
+
+    private void finishMixedPart(MixedSlot slot) {
+        if (slot.pending.decrementAndGet() <= 0) {
+            mixedSlots.remove(slot.utc);
+        }
+    }
+
+    private void pruneMixedSlots(long utc) {
+        long limit = utc - 60000;
+        for (Long key : mixedSlots.keySet()) {
+            if (key < limit) {
+                mixedSlots.remove(key);
+            }
+        }
+    }
+
+    private synchronized WsjtxBandDecoder getMixedBandDecoder() {
+        if (mixedBandDecoder == null) {
+            int cores = Runtime.getRuntime().availableProcessors();
+            // 快速解码占 1 核，wsjtx 用剩下的核；最多 4 段
+            int bands = Math.max(1, Math.min(cores - 1, 4));
+            mixedBandDecoder = new WsjtxBandDecoder(
+                    WsjtxBandDecoder.FREQ_MIN_HZ,
+                    WsjtxBandDecoder.FREQ_MAX_HZ,
+                    WsjtxBandDecoder.OVERLAP_HZ,
+                    bands);
+        }
+        return mixedBandDecoder;
     }
 
     public void decodeFt8(long utc, float[] voiceData) {
@@ -195,8 +374,14 @@ public class FT8SignalListener {
      */
     ArrayList<Ft8Message> decodeByWsjtxParallel(long utc, float[] voiceData,
                                                 boolean deep) {
+        return decodeByWsjtxParallel(utc, voiceData, deep, getWsjtxBandDecoder());
+    }
+
+    ArrayList<Ft8Message> decodeByWsjtxParallel(long utc, float[] voiceData,
+                                                boolean deep,
+                                                WsjtxBandDecoder decoder) {
         try {
-            WsjtxDecoder.Row[] rows = getWsjtxBandDecoder().decode(
+            WsjtxDecoder.Row[] rows = decoder.decode(
                     voiceData, FT8Common.SAMPLE_RATE, deep);
             return toFt8Messages(rows, utc, deep);
         } catch (Throwable e) {
@@ -230,13 +415,15 @@ public class FT8SignalListener {
      */
     private void safeAfterDecode(long utc, ArrayList<Ft8Message> allMsg,
                                  ArrayList<Ft8Message> msgs, boolean isDeep) {
-        try {
-            if (onFt8Listen != null) {
-                onFt8Listen.afterDecode(utc, averageOffset(allMsg)
-                        , UtcTimer.sequential(utc), msgs, isDeep);
+        synchronized (callbackLock) {
+            try {
+                if (onFt8Listen != null) {
+                    onFt8Listen.afterDecode(utc, averageOffset(allMsg)
+                            , UtcTimer.sequential(utc), msgs, isDeep);
+                }
+            } catch (Throwable e) {
+                Log.e(TAG, "afterDecode回调异常（解码结果不受影响）：" + e.getMessage(), e);
             }
-        } catch (Throwable e) {
-            Log.e(TAG, "afterDecode回调异常（解码结果不受影响）：" + e.getMessage(), e);
         }
     }
 

@@ -77,13 +77,22 @@ public final class WsjtxBandDecoder implements AutoCloseable {
     }
 
     public WsjtxBandDecoder(float freqMinHz, float freqMaxHz, float overlapHz) {
+        this(freqMinHz, freqMaxHz, overlapHz, 0);
+    }
+
+    /**
+     * @param bandCountOverride 大于 0 时强制使用该段数；0 表示按 CPU 核心数自动
+     */
+    public WsjtxBandDecoder(float freqMinHz, float freqMaxHz, float overlapHz,
+                            int bandCountOverride) {
         float freqMin = Math.max(0f, freqMinHz);
         float freqMax = Math.max(freqMin + MIN_CORE_WIDTH_HZ, freqMaxHz);
         float overlap = Math.max(0f, overlapHz);
 
         int cores = Runtime.getRuntime().availableProcessors();
-        int n = testBandCount > 0 ? testBandCount
-                : Math.max(1, Math.min(cores, DEFAULT_BANDS));
+        int n = bandCountOverride > 0 ? bandCountOverride
+                : (testBandCount > 0 ? testBandCount
+                : Math.max(1, Math.min(cores, DEFAULT_BANDS)));
         n = Math.max(1, Math.min(n, MAX_BANDS));
         n = Math.min(n, Math.max(1,
                 (int) ((freqMax - freqMin) / MIN_CORE_WIDTH_HZ)));

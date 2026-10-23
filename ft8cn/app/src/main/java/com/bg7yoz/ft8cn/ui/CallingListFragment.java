@@ -166,8 +166,11 @@ public class CallingListFragment extends Fragment {
             @SuppressLint("DefaultLocale")
             @Override
             public void onChanged(Long aLong) {
+                int resId = GeneralVariables.isMixedDecodeMode()
+                        ? R.string.decoding_takes_milliseconds_mixed
+                        : R.string.decoding_takes_milliseconds;
                 binding.isDecodingTextView.setText(String.format(
-                        getString(R.string.decoding_takes_milliseconds), aLong));
+                        getString(resId), aLong));
             }
         });
 

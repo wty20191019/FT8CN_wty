@@ -1119,7 +1119,8 @@ public class ConfigFragment extends Fragment {
         // 旧配置里的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核。
         if (GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_FAST
                 && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_DEEP
-                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
+                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_WSJTX_PARALLEL
+                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_MIXED) {
             GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
         }
 
@@ -1130,6 +1131,9 @@ public class ConfigFragment extends Fragment {
                 break;
             case GeneralVariables.DECODE_MODE_WSJTX_PARALLEL:
                 binding.wsjtxParallelDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_MIXED:
+                binding.mixedDecodeRadioButton.setChecked(true);
                 break;
             case GeneralVariables.DECODE_MODE_FAST:
             default:
@@ -1145,6 +1149,8 @@ public class ConfigFragment extends Fragment {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_DEEP;
                 } else if (buttonId == binding.wsjtxParallelDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
+                } else if (buttonId == binding.mixedDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_MIXED;
                 } else {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_FAST;
                 }
@@ -1158,6 +1164,7 @@ public class ConfigFragment extends Fragment {
         binding.fastDecodeRadioButton.setOnClickListener(listener);
         binding.deepDecodeRadioButton.setOnClickListener(listener);
         binding.wsjtxParallelDecodeRadioButton.setOnClickListener(listener);
+        binding.mixedDecodeRadioButton.setOnClickListener(listener);
 
     }
 
