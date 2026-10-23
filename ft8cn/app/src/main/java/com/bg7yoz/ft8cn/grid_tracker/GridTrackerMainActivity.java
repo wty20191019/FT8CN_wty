@@ -88,8 +88,10 @@ public class GridTrackerMainActivity extends AppCompatActivity {
     @SuppressLint("NotifyDataSetChanged")
     protected void doAfterCreate() {
         //设置消息列表
-        callingListAdapter.notifyDataSetChanged();
-        callMessagesRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
+        callingListAdapter.refreshData();
+        if (callingListAdapter.getItemCount() > 0) {
+            callMessagesRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
+        }
 
         setTipsRadioGroupClickerListener();//显示模式Group radio动作
         setShowTipsSwitchClickerListener();//显示提示开关动作
@@ -210,8 +212,9 @@ public class GridTrackerMainActivity extends AppCompatActivity {
             public void onChanged(ArrayList<Ft8Message> messages) {
                 if (mainViewModel.currentMessages == null) return;
                 ArrayList<Ft8Message> tempMsg = new ArrayList<>(mainViewModel.currentMessages);
-                callingListAdapter.notifyDataSetChanged();
-                if (callMessagesRecyclerView.computeVerticalScrollRange()
+                callingListAdapter.refreshData();
+                if (callingListAdapter.getItemCount() > 0
+                        && callMessagesRecyclerView.computeVerticalScrollRange()
                         - callMessagesRecyclerView.computeVerticalScrollExtent()
                         - callMessagesRecyclerView.computeVerticalScrollOffset() < 500) {
                     callMessagesRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
@@ -783,12 +786,11 @@ public class GridTrackerMainActivity extends AppCompatActivity {
                             doCallNow(message);
                         }
                     }
-                    callingListAdapter.notifyDataSetChanged();
-                    //callingListAdapter.notifyItemChanged(viewHolder.getAdapterPosition());
+                    callingListAdapter.refreshData();
                 }
                 if (direction == ItemTouchHelper.END) {//删除
                     callingListAdapter.deleteMessage(viewHolder.getAdapterPosition());
-                    callingListAdapter.notifyItemRemoved(viewHolder.getAdapterPosition());
+                    callingListAdapter.refreshData();
                 }
             }
 

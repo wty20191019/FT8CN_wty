@@ -203,9 +203,6 @@ public class MyCallingFragment extends Fragment {
         transmitRecycleView.setAdapter(transmitCallListAdapter);
 
 
-        transmitCallListAdapter.notifyDataSetChanged();
-
-
         //设置消息列表滑动，用于快速呼叫
         initRecyclerViewAction();
         //菜单
@@ -356,15 +353,11 @@ public class MyCallingFragment extends Fragment {
                 binding.decoderCounterTextView.setText(String.format(
                         GeneralVariables.getStringFromResource(R.string.message_count)
                         , GeneralVariables.transmitMessages.size()));
-                //if (count == 0) {
-                transmitCallListAdapter.notifyDataSetChanged();
-                //} else {
-                //    transmitCallListAdapter.notifyItemInserted(
-                //            GeneralVariables.transmitMessages.size() - count);
-                //}
+                transmitCallListAdapter.refreshData();
 
                 //当列表下部稍微多出一些，自动上移
-                if (transmitRecycleView.computeVerticalScrollRange()
+                if (transmitCallListAdapter.getItemCount() > 0
+                        && transmitRecycleView.computeVerticalScrollRange()
                         - transmitRecycleView.computeVerticalScrollExtent()
                         - transmitRecycleView.computeVerticalScrollOffset() < 300) {
                     transmitRecycleView.scrollToPosition(transmitCallListAdapter.getItemCount() - 1);
@@ -419,11 +412,14 @@ public class MyCallingFragment extends Fragment {
         binding.mycallToolsBar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                GeneralVariables.simpleCallItemMode=!GeneralVariables.simpleCallItemMode;
-                transmitRecycleView.setAdapter(transmitCallListAdapter);
-                transmitCallListAdapter.notifyDataSetChanged();
-                transmitRecycleView.scrollToPosition(transmitCallListAdapter.getItemCount() - 1);
-                if (GeneralVariables.simpleCallItemMode){
+                GeneralVariables.simpleCallItemMode = !GeneralVariables.simpleCallItemMode;
+                // 不同模式使用不同 viewType，notify 后 RecyclerView 会创建新布局，
+                // 不需要也不应该在列表很大时重复 setAdapter。
+                transmitCallListAdapter.refreshData();
+                if (transmitCallListAdapter.getItemCount() > 0) {
+                    transmitRecycleView.scrollToPosition(transmitCallListAdapter.getItemCount() - 1);
+                }
+                if (GeneralVariables.simpleCallItemMode) {
                     ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_simple_mode));
                 }else {
                     ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_standard_mode));
@@ -476,8 +472,11 @@ public class MyCallingFragment extends Fragment {
                     transmitCallListAdapter.notifyItemChanged(viewHolder.getAdapterPosition());
                 }
                 if (direction == ItemTouchHelper.END) {//删除
-                    transmitCallListAdapter.deleteMessage(viewHolder.getAdapterPosition());
-                    transmitCallListAdapter.notifyItemRemoved(viewHolder.getAdapterPosition());
+                    int position = viewHolder.getAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) {
+                        transmitCallListAdapter.deleteMessage(position);
+                        transmitCallListAdapter.notifyItemRemoved(position);
+                    }
                 }
             }
 

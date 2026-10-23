@@ -304,8 +304,9 @@ public class MainViewModel extends ViewModel {
 
                 synchronized (ft8Messages) {
                     ft8Messages.addAll(messages);//添加消息到列表
+                    //删除多余的消息,FT8CN限定的可展示消息的总数量
+                    GeneralVariables.deleteArrayListMore(ft8Messages);
                 }
-                GeneralVariables.deleteArrayListMore(ft8Messages);//删除多余的消息,FT8CN限定的可展示消息的总数量
 
                 mutableFt8MessageList.postValue(ft8Messages);//触发添加消息的动作，让界面能观察到
                 mutableTimerOffset.postValue(time_sec);//本次时间偏移量
@@ -398,7 +399,9 @@ public class MainViewModel extends ViewModel {
                     }
                 }
                 if (ft8TransmitSignal.isActivated()) {
-                    GeneralVariables.transmitMessages.add(message);
+                    synchronized (GeneralVariables.transmitMessages) {
+                        GeneralVariables.transmitMessages.add(message);
+                    }
                     //mutableTransmitMessages.postValue(GeneralVariables.transmitMessages);
                     mutableTransmitMessagesCount.postValue(1);
                 }
@@ -523,24 +526,26 @@ public class MainViewModel extends ViewModel {
             return;
         }
         int count = 0;
-        for (Ft8Message msg : messages) {
-            //与我的呼号有关，与关注的呼号有关
-            //if (msg.getCallsignFrom().equals(GeneralVariables.myCallsign)
-            if (GeneralVariables.checkIsMyCallsign(msg.getCallsignFrom())
-                    //|| msg.getCallsignTo().equals(GeneralVariables.myCallsign)
-                    || GeneralVariables.checkIsMyCallsign(msg.getCallsignTo())
-                    || GeneralVariables.callsignInFollow(msg.getCallsignFrom())
-                    || (GeneralVariables.callsignInFollow(msg.getCallsignTo()) && (msg.getCallsignTo() != null))
-                    || (GeneralVariables.autoFollowCQ && msg.checkIsCQ())) {//是CQ，并且允许关注CQ
-                //看不是通联成功的呼号的消息
-                msg.isQSL_Callsign = GeneralVariables.checkQSLCallsign(msg.getCallsignFrom());
-                if (!GeneralVariables.checkIsExcludeCallsign(msg.callsignFrom)) {//不在排除呼号前缀的，才加入列表
-                    count++;
-                    GeneralVariables.transmitMessages.add(msg);
+        synchronized (GeneralVariables.transmitMessages) {
+            for (Ft8Message msg : messages) {
+                //与我的呼号有关，与关注的呼号有关
+                //if (msg.getCallsignFrom().equals(GeneralVariables.myCallsign)
+                if (GeneralVariables.checkIsMyCallsign(msg.getCallsignFrom())
+                        //|| msg.getCallsignTo().equals(GeneralVariables.myCallsign)
+                        || GeneralVariables.checkIsMyCallsign(msg.getCallsignTo())
+                        || GeneralVariables.callsignInFollow(msg.getCallsignFrom())
+                        || (GeneralVariables.callsignInFollow(msg.getCallsignTo()) && (msg.getCallsignTo() != null))
+                        || (GeneralVariables.autoFollowCQ && msg.checkIsCQ())) {//是CQ，并且允许关注CQ
+                    //看不是通联成功的呼号的消息
+                    msg.isQSL_Callsign = GeneralVariables.checkQSLCallsign(msg.getCallsignFrom());
+                    if (!GeneralVariables.checkIsExcludeCallsign(msg.callsignFrom)) {//不在排除呼号前缀的，才加入列表
+                        count++;
+                        GeneralVariables.transmitMessages.add(msg);
+                    }
                 }
             }
+            GeneralVariables.deleteArrayListMore(GeneralVariables.transmitMessages);//删除多余的消息
         }
-        GeneralVariables.deleteArrayListMore(GeneralVariables.transmitMessages);//删除多余的消息
         //mutableTransmitMessages.postValue(GeneralVariables.transmitMessages);
         mutableTransmitMessagesCount.postValue(count);
     }
@@ -549,7 +554,9 @@ public class MainViewModel extends ViewModel {
      * 清除传输消息列表
      */
     public void clearTransmittingMessage() {
-        GeneralVariables.transmitMessages.clear();
+        synchronized (GeneralVariables.transmitMessages) {
+            GeneralVariables.transmitMessages.clear();
+        }
         mutableTransmitMessagesCount.postValue(0);
     }
 
@@ -575,8 +582,10 @@ public class MainViewModel extends ViewModel {
      * 清除消息列表
      */
     public void clearFt8MessageList() {
-        ft8Messages.clear();
-        mutable_Decoded_Counter.postValue(ft8Messages.size());
+        synchronized (ft8Messages) {
+            ft8Messages.clear();
+        }
+        mutable_Decoded_Counter.postValue(0);
         mutableFt8MessageList.postValue(ft8Messages);
     }
 

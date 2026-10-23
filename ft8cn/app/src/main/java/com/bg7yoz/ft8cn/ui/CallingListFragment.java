@@ -63,8 +63,9 @@ public class CallingListFragment extends Fragment {
                 , mainViewModel.ft8Messages, CallingListAdapter.ShowMode.CALLING_LIST);
         callListRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         callListRecyclerView.setAdapter(callingListAdapter);
-        callingListAdapter.notifyDataSetChanged();
-        callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
+        if (callingListAdapter.getItemCount() > 0) {
+            callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
+        }
 
 
         requireActivity().registerForContextMenu(callListRecyclerView);//注册菜单
@@ -94,7 +95,7 @@ public class CallingListFragment extends Fragment {
             @Override
             public void onClick(View view) {
                 mainViewModel.clearFt8MessageList();
-                callingListAdapter.notifyDataSetChanged();
+                callingListAdapter.refreshData();
                 mainViewModel.mutable_Decoded_Counter.setValue(0);
             }
         });
@@ -114,9 +115,10 @@ public class CallingListFragment extends Fragment {
         mainViewModel.mutableFt8MessageList.observe(getViewLifecycleOwner(), new Observer<ArrayList<Ft8Message>>() {
             @Override
             public void onChanged(ArrayList<Ft8Message> messages) {
-                callingListAdapter.notifyDataSetChanged();
+                callingListAdapter.refreshData();
                 //当列表下部稍微多出一些，自动上移
-                if (callListRecyclerView.computeVerticalScrollRange()
+                if (callingListAdapter.getItemCount() > 0
+                        && callListRecyclerView.computeVerticalScrollRange()
                         - callListRecyclerView.computeVerticalScrollExtent()
                         - callListRecyclerView.computeVerticalScrollOffset() < 500) {
                     callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
@@ -194,11 +196,14 @@ public class CallingListFragment extends Fragment {
         binding.callingListToolsBar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                GeneralVariables.simpleCallItemMode=!GeneralVariables.simpleCallItemMode;
-                callListRecyclerView.setAdapter(callingListAdapter);
-                callingListAdapter.notifyDataSetChanged();
-                callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
-                if (GeneralVariables.simpleCallItemMode){
+                GeneralVariables.simpleCallItemMode = !GeneralVariables.simpleCallItemMode;
+                // 不同模式使用不同 viewType，notify 后 RecyclerView 会创建新布局，
+                // 不需要也不应该在列表很大时重复 setAdapter。
+                callingListAdapter.refreshData();
+                if (callingListAdapter.getItemCount() > 0) {
+                    callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
+                }
+                if (GeneralVariables.simpleCallItemMode) {
                     ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_simple_mode));
                 }else {
                     ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_standard_mode));
@@ -240,8 +245,11 @@ public class CallingListFragment extends Fragment {
                     }
                 }
                 if (direction == ItemTouchHelper.END) {//删除
-                    callingListAdapter.deleteMessage(viewHolder.getAdapterPosition());
-                    callingListAdapter.notifyItemRemoved(viewHolder.getAdapterPosition());
+                    int position = viewHolder.getAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) {
+                        callingListAdapter.deleteMessage(position);
+                        callingListAdapter.notifyItemRemoved(position);
+                    }
                 }
 
 
