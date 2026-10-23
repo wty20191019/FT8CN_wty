@@ -1,0 +1,61 @@
+file	expected	ours_hits	ours_extra	confirmed_by_jtdx	unconfirmed	jtdx_hits	jtdx_extra	unconfirmed_messages
+191111_110115.wav	1	1	0	0	0	1	0	
+191111_110130.wav	5	5	0	0	0	5	0	
+191111_110145.wav	2	2	0	0	0	2	0	
+191111_110200.wav	5	5	0	0	0	5	0	
+191111_110215.wav	4	4	3	3	0	4	4	
+191111_110615.wav	22	18	0	0	0	21	2	
+191111_110630.wav	15	14	2	2	0	15	4	
+191111_110645.wav	20	16	0	0	0	20	0	
+191111_110700.wav	16	16	1	1	0	16	2	
+test_01.wav	24	21	4	4	0	24	5	
+test_02.wav	24	20	1	0	1	23	1	LU5HA UA9TK R-13
+test_03.wav	19	17	2	2	0	19	3	
+test_04.wav	20	18	3	2	1	20	7	BD8NBG PD7C R-19
+test_05.wav	32	31	0	0	0	32	1	
+test_06.wav	27	22	1	0	1	27	3	OK1AWC <...> +10
+test_07.wav	31	30	0	0	0	31	1	
+test_08.wav	19	12	0	0	0	19	3	
+test_09.wav	27	25	3	2	1	27	2	PA3GAE E75C +00
+test_10.wav	20	16	0	0	0	20	1	
+test_11.wav	31	30	1	1	0	30	1	
+test_12.wav	18	17	2	2	0	18	5	
+test_13.wav	26	25	2	2	0	26	4	
+test_14.wav	17	12	2	1	1	17	1	SQ6PZL TA3AHJ KN30
+test_15.wav	28	25	0	0	0	27	5	
+test_16.wav	16	12	2	0	2	16	3	CQ OR7EG JO11 | R8AU F4AGZ JN38
+test_17.wav	26	24	3	3	0	26	5	
+test_18.wav	20	15	0	0	0	20	5	
+test_19.wav	30	28	2	2	0	30	3	
+test_20.wav	20	15	1	1	0	20	4	
+test_21.wav	34	31	0	0	0	34	0	
+test_22.wav	23	20	1	1	0	23	4	
+test_23.wav	26	22	2	1	1	25	4	JA1FWS OK2BV R-13
+test_24.wav	22	20	1	1	0	22	1	
+test_25.wav	28	26	0	0	0	27	4	
+test_26.wav	23	20	0	0	0	23	1	
+test_27.wav	29	28	1	1	0	29	2	
+test_28.wav	25	18	0	0	0	25	4	
+test_29.wav	23	21	3	3	0	23	5	
+test_30.wav	27	23	1	0	1	26	5	<OR18OSB> OM7OM JN98
+test_31.wav	24	20	3	2	1	24	7	SM3MXR 4U1A R-08
+test_32.wav	25	20	1	1	0	25	6	
+test_33.wav	28	24	1	1	0	28	2	
+test_34.wav	25	20	2	1	1	25	3	G3WAG SP4TXI 73
+test_35.wav	32	27	1	1	0	32	2	
+test_36.wav	24	19	0	0	0	24	5	
+test_37.wav	24	22	5	2	3	24	5	CQ CT3IQ IM12 | CQ SV2BRA KN10 | OR7EG OM7OM JN98
+test_38.wav	19	15	2	2	0	19	4	
+websdr_test1.wav	18	15	0	0	0	16	2	
+websdr_test10.wav	15	13	2	2	0	15	3	
+websdr_test11.wav	23	23	2	2	0	19	2	
+websdr_test12.wav	14	13	5	3	2	14	4	CQ S57NCP JN76 | KE0EE N1RDN R-18
+websdr_test13.wav	13	13	5	4	1	13	5	Z81D W3GQ R-09
+websdr_test2.wav	21	17	2	0	2	21	0	CQ G4IJC JO02 | UA9SIX GM0LIR R-07
+websdr_test3.wav	11	10	5	3	2	11	5	GM0LIR UA9SIX -09 | R2ATW IZ0VLL -08
+websdr_test4.wav	23	22	4	2	2	23	5	CQ CU2DX HM77 | DK5OK DB4BU R-04
+websdr_test5.wav	27	26	2	1	1	27	3	EA8PP JH0INP PM96
+websdr_test6.wav	30	29	3	1	2	29	1	IT9EJP IU2KAJ JN45 | RA1CP OM7JG R+03
+websdr_test7.wav	27	26	4	4	0	26	6	
+websdr_test8.wav	26	23	0	0	0	26	0	
+websdr_test9.wav	24	23	1	0	1	19	1	K6DRY YO9HP -15

@@ -11,6 +11,7 @@ import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -169,6 +170,12 @@ public class BenchmarkActivity extends Activity {
             StringBuilder detail = new StringBuilder();
             detail.append("mode=").append(mode).append('\n');
 
+            // 逐条报文导出，供 JTDX 等外部解码器交叉验证
+            File msgFile = new File(getExternalFilesDir(null), "decoded_" + mode + ".tsv");
+            BufferedWriter msgWriter = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(msgFile), UTF8));
+            logLine("报文导出: " + msgFile.getAbsolutePath());
+
             for (File wav : wavs) {
                 String base = wav.getName().substring(0, wav.getName().length() - 4);
                 File txt = new File(dir, base + ".txt");
@@ -200,12 +207,24 @@ public class BenchmarkActivity extends Activity {
                 List<String> got = new ArrayList<>();
                 for (Ft8Message msg : messages) {
                     try {
-                        String key = makeKey(msg.getMessageText());
+                        String text = msg.getMessageText();
+                        String key = makeKey(text);
                         if (!key.isEmpty()) got.add(key);
+                        msgWriter.write(wav.getName());
+                        msgWriter.write('\t');
+                        msgWriter.write(text == null ? "" : text.replace('\t', ' '));
+                        msgWriter.write('\t');
+                        msgWriter.write(Integer.toString(msg.snr));
+                        msgWriter.write('\t');
+                        msgWriter.write(String.format(Locale.US, "%.2f", msg.time_sec));
+                        msgWriter.write('\t');
+                        msgWriter.write(String.format(Locale.US, "%.0f", msg.freq_hz));
+                        msgWriter.write('\n');
                     } catch (Throwable e) {
                         Log.w(TAG, "getMessageText失败: " + e.getMessage());
                     }
                 }
+                msgWriter.flush();
 
                 List<String> uniqueGot = new ArrayList<>(new LinkedHashSet<>(got));
                 int duplicates = got.size() - uniqueGot.size();
@@ -251,6 +270,9 @@ public class BenchmarkActivity extends Activity {
                 detail.append(line).append('\n');
                 logLine(line);
             }
+
+            msgWriter.flush();
+            msgWriter.close();
 
             String summary = total.summary(mode);
             detail.append(summary).append('\n');
