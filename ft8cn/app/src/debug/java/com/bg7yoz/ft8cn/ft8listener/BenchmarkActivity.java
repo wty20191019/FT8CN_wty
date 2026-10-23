@@ -66,6 +66,7 @@ public class BenchmarkActivity extends Activity {
     private String fileFilter;
     private float bandLo;
     private float bandHi;
+    private int earlyOffsetMs = 500;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +90,9 @@ public class BenchmarkActivity extends Activity {
         fileFilter = getIntent().getStringExtra("file");
         bandLo = getIntent().getFloatExtra("fmin", 0f);
         bandHi = getIntent().getFloatExtra("fmax", 0f);
+        earlyOffsetMs = getIntent().getIntExtra("early", 500);
+        if (earlyOffsetMs < 0) earlyOffsetMs = 0;
+        if (earlyOffsetMs > 1860) earlyOffsetMs = 1860;
 
         String benchDir = dir;
         final int bands = getIntent().getIntExtra("bands", 0);
@@ -294,13 +298,14 @@ public class BenchmarkActivity extends Activity {
      */
     private List<Ft8Message> decodeHybrid(FT8SignalListener listener,
                                           float[] audio, long start) {
-        int partialSamples = FT8Common.SAMPLE_RATE * 14500 / 1000;
+        int partialSamples = FT8Common.SAMPLE_RATE
+                * (FT8Common.FT8_SLOT_TIME_MILLISECOND - earlyOffsetMs) / 1000;
         final float[] partial = new float[FT8Common.SAMPLE_RATE * 15];
         System.arraycopy(audio, 0, partial, 0,
                 Math.min(partialSamples, audio.length));
 
         final List<Ft8Message> deep = new ArrayList<>();
-        final long deadline = System.currentTimeMillis() + 500;
+        final long deadline = System.currentTimeMillis() + earlyOffsetMs;
         final AtomicBoolean fastStarted = new AtomicBoolean(false);
         Thread deepThread = new Thread(new Runnable() {
             @Override
@@ -325,9 +330,9 @@ public class BenchmarkActivity extends Activity {
         });
         deepThread.start();
 
-        // 深度提前 500 ms，快速在时隙结束时启动
+        // 深度提前 earlyOffsetMs，快速在时隙结束时启动
         try {
-            Thread.sleep(500);
+            Thread.sleep(earlyOffsetMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
