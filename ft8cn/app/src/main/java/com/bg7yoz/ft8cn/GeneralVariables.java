@@ -34,7 +34,7 @@ public class GeneralVariables {
     private static final String TAG = "GeneralVariables";
     public static String VERSION = BuildConfig.VERSION_NAME;//版本号"0.62（Beta 4）";
     public static String BUILD_DATE = BuildConfig.apkBuildTime;//编译的时间
-    public static int MESSAGE_COUNT = 3000;//消息的最大缓存数量
+    public static int MESSAGE_COUNT = 100;//消息的最大缓存数量
     public static boolean saveSWLMessage = false;//保存解码消息开关
     public static boolean saveSWL_QSO = false;//保存解码消息消息中的QSO开关
     public static boolean enableCloudlog = false;//是否启用Cloudlog自动同步
@@ -175,8 +175,6 @@ public class GeneralVariables {
     public static String myCallsign = "";//我的呼号
     public static String toModifier = "";//呼叫的修饰符
     private static float baseFrequency = 1000;//声音频率
-
-    public static boolean simpleCallItemMode = false;//紧凑型消息
 
     public static boolean swr_switch_on = true;//swr告警开关
     public static boolean alc_switch_on = true;//alc告警开关

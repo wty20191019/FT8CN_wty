@@ -409,25 +409,6 @@ public class MyCallingFragment extends Fragment {
             }
         });
 
-        binding.mycallToolsBar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                GeneralVariables.simpleCallItemMode = !GeneralVariables.simpleCallItemMode;
-                // 不同模式使用不同 viewType，notify 后 RecyclerView 会创建新布局，
-                // 不需要也不应该在列表很大时重复 setAdapter。
-                transmitCallListAdapter.refreshData();
-                if (transmitCallListAdapter.getItemCount() > 0) {
-                    transmitRecycleView.scrollToPosition(transmitCallListAdapter.getItemCount() - 1);
-                }
-                if (GeneralVariables.simpleCallItemMode) {
-                    ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_simple_mode));
-                }else {
-                    ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_standard_mode));
-                }
-            }
-        });
-
-
         showFreeTextEdit();
         return binding.getRoot();
     }
