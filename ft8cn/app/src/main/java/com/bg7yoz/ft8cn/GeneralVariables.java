@@ -701,10 +701,12 @@ public class GeneralVariables {
         return result.toString();
     }
 
-    public static synchronized void deleteArrayListMore(ArrayList<Ft8Message> list) {
-        if (list.size() > GeneralVariables.MESSAGE_COUNT) {
-            while (list.size() > GeneralVariables.MESSAGE_COUNT) {
-                list.remove(0);
+    public static void deleteArrayListMore(ArrayList<Ft8Message> list) {
+        synchronized (list) {
+            if (list.size() > GeneralVariables.MESSAGE_COUNT) {
+                while (list.size() > GeneralVariables.MESSAGE_COUNT) {
+                    list.remove(0);
+                }
             }
         }
     }

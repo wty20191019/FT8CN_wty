@@ -10,6 +10,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Paint;
 import android.opengl.Visibility;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,11 +31,20 @@ import com.bg7yoz.ft8cn.rigs.BaseRigOperation;
 import com.bg7yoz.ft8cn.timer.UtcTimer;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 
 public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.CallingListItemHolder> {
     public enum ShowMode{CALLING_LIST,MY_CALLING,TRACKER}
     private static final String TAG = "CallingListAdapter";
     private final MainViewModel mainViewModel;
+    /**
+     * 原始数据源：可能被解码线程持续增删，不能直接交给 RecyclerView 绑定。
+     */
+    private final ArrayList<Ft8Message> sourceMessages;
+    /**
+     * UI 线程使用的快照。RecyclerView 只读这个列表，避免绑定过程中
+     * 源列表被删除元素导致 IndexOutOfBoundsException。
+     */
     private final ArrayList<Ft8Message> ft8MessageArrayList;
     private final Context context;
 
@@ -127,21 +137,73 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
             , ArrayList<Ft8Message> messages, ShowMode showMode) {
         this.mainViewModel = mainViewModel;
         this.context = context;
-        this.showMode=showMode;
-        ft8MessageArrayList = messages;
+        this.showMode = showMode;
+        this.sourceMessages = messages;
+        this.ft8MessageArrayList = new ArrayList<>();
+        snapshotFromSource();
+    }
+
+    /**
+     * 源列表可能在解码线程中被追加或裁剪，复制失败时保留上一份快照，
+     * 等下一次刷新再更新，不能让 RecyclerView 读到半更新的数据。
+     */
+    private boolean snapshotFromSource() {
+        ArrayList<Ft8Message> copy = new ArrayList<>();
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                copy.clear();
+                synchronized (sourceMessages) {
+                    copy.addAll(sourceMessages);
+                }
+                ft8MessageArrayList.clear();
+                ft8MessageArrayList.addAll(copy);
+                return true;
+            } catch (ConcurrentModificationException | IndexOutOfBoundsException e) {
+                Log.w(TAG, "消息列表正在更新，重试快照", e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 刷新列表快照并通知 RecyclerView。切换精简/标准模式、解码更新、
+     * 清除列表和删除条目后都应调用此方法。
+     */
+    @SuppressLint("NotifyDataSetChanged")
+    public void refreshData() {
+        if (snapshotFromSource()) {
+            notifyDataSetChanged();
+        }
+    }
+
+    /**
+     * 当前 UI 快照中的消息数量。
+     */
+    @Override
+    public int getItemCount() {
+        return ft8MessageArrayList.size();
+    }
+
+    /**
+     * 精简/标准模式使用不同布局，必须返回不同 viewType，
+     * 否则切换模式后 RecyclerView 会复用旧布局的 ViewHolder。
+     */
+    @Override
+    public int getItemViewType(int position) {
+        return GeneralVariables.simpleCallItemMode ? 1 : 0;
     }
 
     @NonNull
     @Override
     public CallingListItemHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
-        View view ;
-        if (GeneralVariables.simpleCallItemMode) {
+        View view;
+        if (viewType == 1) {
             view = layoutInflater.inflate(R.layout.call_list_holder_simple_item, parent, false);
-        }else {
+        } else {
             view = layoutInflater.inflate(R.layout.call_list_holder_item, parent, false);
         }
-        return new CallingListItemHolder(view,onItemClickListener,menuListener);
+        return new CallingListItemHolder(view, onItemClickListener, menuListener);
     }
 
     /**
@@ -150,15 +212,16 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
      * @param position 在列表中的位置
      */
     public void deleteMessage(int position) {
-        if (position >= 0) {
-            ft8MessageArrayList.remove(position);
+        if (position < 0 || position >= ft8MessageArrayList.size()) return;
+        Ft8Message message = ft8MessageArrayList.get(position);
+        synchronized (sourceMessages) {
+            sourceMessages.remove(message);
         }
+        ft8MessageArrayList.remove(position);
     }
 
-    public Ft8Message getMessageByPosition(int position){
-        if (ft8MessageArrayList==null) return null;
-        if (position<0) return null;
-        if (position>ft8MessageArrayList.size()-1) return null;
+    public Ft8Message getMessageByPosition(int position) {
+        if (position < 0 || position >= ft8MessageArrayList.size()) return null;
         return ft8MessageArrayList.get(position);
     }
 
@@ -169,17 +232,16 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
      * @return ft8message
      */
     public Ft8Message getMessageByViewHolder(RecyclerView.ViewHolder holder) {
-        if (holder.getAdapterPosition() == -1) {
-            return null;
-        }
-        return ft8MessageArrayList.get(holder.getAdapterPosition());
+        return getMessageByPosition(holder.getAdapterPosition());
     }
 
     @SuppressLint("ResourceAsColor")
     @Override
     public void onBindViewHolder(@NonNull CallingListItemHolder holder, int position) {
+        Ft8Message message = getMessageByPosition(position);
+        if (message == null) return;
         holder.callListHolderConstraintLayout.setTag(position);//设置layout的tag，为了识别消息的定位
-        holder.ft8Message = ft8MessageArrayList.get(position);
+        holder.ft8Message = message;
         holder.showMode = showMode;//确定是消息列表还是关注消息的列表
         holder.isSyncFreq = mainViewModel.ft8TransmitSignal.isSynFrequency();//如果同频发射，就不显示呼叫接收者
 
@@ -380,11 +442,6 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
                     holder.callListMessageTextView.getPaintFlags() & (~Paint.STRIKE_THRU_TEXT_FLAG));
         }
         holder.otherBandIsQso = GeneralVariables.checkQSLCallsign_OtherBand(holder.ft8Message.getCallsignFrom());
-    }
-
-    @Override
-    public int getItemCount() {
-        return ft8MessageArrayList.size();
     }
 
     public void setOnItemClickListener(View.OnClickListener onItemClickListener) {
