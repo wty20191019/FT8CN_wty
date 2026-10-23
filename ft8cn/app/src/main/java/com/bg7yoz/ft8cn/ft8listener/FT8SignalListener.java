@@ -20,8 +20,17 @@ import com.bg7yoz.ft8cn.timer.UtcTimer;
 import com.bg7yoz.ft8cn.wave.OnGetVoiceDataDone;
 import com.bg7yoz.ft8cn.wave.WaveFileReader;
 import com.bg7yoz.ft8cn.wave.WaveFileWriter;
+import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
+import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FT8SignalListener {
     private static final String TAG = "FT8SignalListener";
@@ -38,6 +47,39 @@ public class FT8SignalListener {
     private DatabaseOpr db;
 
     private final A91List a91List = new A91List();//a91列表
+
+    //wsjtx解码库是否可用。armeabi-v7a/x86没有对应的so，第一次失败后不再尝试
+    private volatile boolean wsjtxAvailable = true;
+    //频谱分段并行解码器，首次使用 wsjtx 多核挡位时创建
+    private WsjtxBandDecoder wsjtxBandDecoder;
+
+    //混合挡位：每个时隙的两个并行解码任务共享一份去重集合
+    private final Map<Long, HybridSlot> hybridSlots = new ConcurrentHashMap<>();
+    //深度/快速回调串行化，避免 MainViewModel 的共享状态并发竞争
+    private final Object callbackLock = new Object();
+
+    //自适应提前量：200~1800 ms，100 ms 步进
+    private static final int HYBRID_EARLY_MIN_MS = 200;
+    private static final int HYBRID_EARLY_MAX_MS = 1800;
+    private static final int HYBRID_EARLY_STEP_MS = 100;
+    private static final int HYBRID_EARLY_START_MS = 500;
+    private static final int HYBRID_EARLY_SUCCESS_STREAK = 3;
+    private volatile int hybridEarlyMs = HYBRID_EARLY_START_MS;
+    private int hybridSuccessStreak = 0;
+    // 曾经超时过的窗口 + 一步，作为下限，避免在边界反复抖动
+    private int hybridMinSafeMs = HYBRID_EARLY_MIN_MS;
+
+    private static final class HybridSlot {
+        final long utc;
+        final Set<String> seen = Collections.synchronizedSet(new HashSet<String>());
+        final AtomicInteger pending = new AtomicInteger(2);
+        /** 快速解码已经开始：之后完成的深度结果一律丢弃。 */
+        volatile boolean fastStarted = false;
+
+        HybridSlot(long utc) {
+            this.utc = utc;
+        }
+    }
 
 
     static {
@@ -98,14 +140,233 @@ public class FT8SignalListener {
         Log.d(TAG, "开始录音...");
 
         if (onWaveDataListener != null) {
-            onWaveDataListener.getVoiceData(FT8Common.FT8_SLOT_TIME_MILLISECOND, true
-                    , new OnGetVoiceDataDone() {
-                        @Override
-                        public void onGetDone(float[] data) {
-                            Log.d(TAG, String.format("开始解码...###,数据长度：%d",data.length));
-                            decodeFt8(utc, data);
-                        }
-                    });
+            if (GeneralVariables.isHybridDecodeMode()) {
+                runRecordeHybrid(utc);
+            } else {
+                onWaveDataListener.getVoiceData(FT8Common.FT8_SLOT_TIME_MILLISECOND, true
+                        , new OnGetVoiceDataDone() {
+                            @Override
+                            public void onGetDone(float[] data) {
+                                Log.d(TAG, String.format("开始解码...###,数据长度：%d",data.length));
+                                decodeFt8(utc, data);
+                            }
+                        });
+            }
+        }
+    }
+
+    /**
+     * 混合挡位：按自适应提前量先启动 wsjtx 深度多核，
+     * 时隙结束时再启动原有快速解码；两边结果按时隙共享去重集合。
+     */
+    private void runRecordeHybrid(final long utc) {
+        pruneHybridSlots(utc);
+        final HybridSlot slot = new HybridSlot(utc);
+        hybridSlots.put(utc, slot);
+        final int earlyMs = hybridEarlyMs;
+
+        // 提前启动深度多核（早期窗口 earlyMs）
+        onWaveDataListener.getVoiceData(
+                FT8Common.FT8_SLOT_TIME_MILLISECOND - earlyMs, true,
+                new OnGetVoiceDataDone() {
+                    @Override
+                    public void onGetDone(final float[] data) {
+                        Log.d(TAG, String.format(
+                                "提前深度解码...###,提前%dms,数据长度：%d",
+                                earlyMs, data.length));
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                decodeHybridDeep(utc, data, slot, earlyMs);
+                            }
+                        }).start();
+                    }
+                });
+
+        // 15.0 s：原有快速解码
+        onWaveDataListener.getVoiceData(
+                FT8Common.FT8_SLOT_TIME_MILLISECOND, true,
+                new OnGetVoiceDataDone() {
+                    @Override
+                    public void onGetDone(final float[] data) {
+                        Log.d(TAG, String.format("快速补充解码...###,数据长度：%d", data.length));
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                decodeHybridFast(utc, data, slot);
+                            }
+                        }).start();
+                    }
+                });
+    }
+
+    private void decodeHybridDeep(long utc, float[] partial, HybridSlot slot, int earlyMs) {
+        long start = System.currentTimeMillis();
+        long deadline = start + earlyMs; // 深度必须在时隙结束前完成
+        try {
+            if (onFt8Listen != null) {
+                onFt8Listen.beforeListen(utc);
+            }
+
+            // 补齐到完整 15 s，缺失的最后 500 ms 用静音填充
+            int fullLen = FT8Common.SAMPLE_RATE
+                    * (FT8Common.FT8_SLOT_TIME_MILLISECOND / 1000);
+            float[] audio;
+            if (partial.length >= fullLen) {
+                audio = partial;
+            } else {
+                audio = new float[fullLen];
+                System.arraycopy(partial, 0, audio, 0, partial.length);
+            }
+
+            ArrayList<Ft8Message> msgs = null;
+            if (wsjtxAvailable) {
+                msgs = decodeByWsjtxParallel(utc, audio, true);
+                if (msgs == null) {
+                    msgs = decodeByWsjtx(utc, audio, true);
+                }
+                if (msgs == null) {
+                    wsjtxAvailable = false;
+                }
+            }
+
+            long doneAt = System.currentTimeMillis();
+            boolean timeout = doneAt > deadline;
+            if (msgs == null) {
+                Log.d(TAG, String.format(
+                        "提前深度不可用，丢弃深度结果：%d 毫秒", doneAt - start));
+                return;
+            }
+            if (timeout) {
+                onHybridTimeout(earlyMs, doneAt - start);
+                Log.d(TAG, String.format(
+                        "提前深度超时（窗口 %d ms，实际 %d ms），丢弃深度结果",
+                        earlyMs, doneAt - start));
+                return;
+            }
+
+            // 如果快速解码已经开始，也不再发布深度结果
+            synchronized (slot) {
+                if (slot.fastStarted) {
+                    onHybridTimeout(earlyMs, doneAt - start);
+                    Log.d(TAG, "快速解码已开始，丢弃迟到的深度结果");
+                    return;
+                }
+                msgs = filterNewMessages(msgs, slot.seen);
+                timeSec = doneAt - start;
+                decodeTimeSec.postValue(timeSec);
+                // isDeep=true：只显示，不触发自动程序
+                safeAfterDecode(utc, msgs, msgs, true);
+            }
+            onHybridSuccess();
+            Log.d(TAG, String.format("提前深度完成：%d 条，%d 毫秒，当前提前量 %d ms",
+                    msgs.size(), doneAt - start, hybridEarlyMs));
+        } catch (Throwable e) {
+            Log.e(TAG, "提前深度解码异常：" + e.getMessage(), e);
+        } finally {
+            finishHybridPart(slot);
+        }
+    }
+
+    private synchronized void onHybridTimeout(int usedEarlyMs, long elapsedMs) {
+        hybridSuccessStreak = 0;
+        hybridMinSafeMs = Math.min(HYBRID_EARLY_MAX_MS,
+                Math.max(hybridMinSafeMs, usedEarlyMs + HYBRID_EARLY_STEP_MS));
+        int next = Math.min(HYBRID_EARLY_MAX_MS,
+                hybridEarlyMs + HYBRID_EARLY_STEP_MS);
+        if (next != hybridEarlyMs) {
+            hybridEarlyMs = next;
+            Log.w(TAG, String.format(
+                    "提前深度超时（%d ms，窗口 %d ms），提前量调整为 %d ms",
+                    elapsedMs, usedEarlyMs, hybridEarlyMs));
+        }
+    }
+
+    private synchronized void onHybridSuccess() {
+        hybridSuccessStreak++;
+        int next = hybridEarlyMs - HYBRID_EARLY_STEP_MS;
+        if (hybridSuccessStreak >= HYBRID_EARLY_SUCCESS_STREAK
+                && next >= hybridMinSafeMs
+                && next >= HYBRID_EARLY_MIN_MS) {
+            hybridEarlyMs = next;
+            hybridSuccessStreak = 0;
+            Log.d(TAG, String.format("提前深度连续成功，提前量调整为 %d ms",
+                    hybridEarlyMs));
+        }
+    }
+
+    private void decodeHybridFast(long utc, float[] audio, HybridSlot slot) {
+        long start = System.currentTimeMillis();
+        // 先置标志，保证之后完成的深度结果被丢弃
+        synchronized (slot) {
+            slot.fastStarted = true;
+        }
+        try {
+            ArrayList<Ft8Message> msgs = decodeFastMessages(utc, audio);
+            msgs = filterNewMessages(msgs, slot.seen);
+            timeSec = System.currentTimeMillis() - start;
+            decodeTimeSec.postValue(timeSec);
+            // isDeep=false：快速结果完成后才触发自动程序
+            safeAfterDecode(utc, msgs, msgs, false);
+            Log.d(TAG, String.format("快速补充完成：%d 条，%d 毫秒",
+                    msgs.size(), timeSec));
+        } catch (Throwable e) {
+            Log.e(TAG, "快速补充解码异常：" + e.getMessage(), e);
+        } finally {
+            finishHybridPart(slot);
+        }
+    }
+
+    /**
+     * 只跑原 FT8CN 快速解码，不回调，返回消息列表。
+     */
+    private ArrayList<Ft8Message> decodeFastMessages(long utc, float[] audio) {
+        long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE, audio.length, true);
+        try {
+            DecoderMonitorPressFloat(audio, ft8Decoder);
+            return runDecode(ft8Decoder, utc, false);
+        } finally {
+            DeleteDecoder(ft8Decoder);
+        }
+    }
+
+    /**
+     * 按时隙共享去重集合过滤，避免深度与快速结果重复显示。
+     */
+    private ArrayList<Ft8Message> filterNewMessages(ArrayList<Ft8Message> msgs,
+                                                    Set<String> seen) {
+        ArrayList<Ft8Message> out = new ArrayList<>();
+        if (msgs == null) return out;
+
+        synchronized (seen) {
+            for (Ft8Message msg : msgs) {
+                try {
+                    String text = msg.getMessageText();
+                    if (text == null || text.isEmpty()) continue;
+                    String key = text.trim().toUpperCase(Locale.US);
+                    if (seen.add(key)) {
+                        out.add(msg);
+                    }
+                } catch (Throwable e) {
+                    Log.w(TAG, "filterNewMessages: " + e.getMessage());
+                }
+            }
+        }
+        return out;
+    }
+
+    private void finishHybridPart(HybridSlot slot) {
+        if (slot.pending.decrementAndGet() <= 0) {
+            hybridSlots.remove(slot.utc);
+        }
+    }
+
+    private void pruneHybridSlots(long utc) {
+        long limit = utc - 60000;
+        for (Long key : hybridSlots.keySet()) {
+            if (key < limit) {
+                hybridSlots.remove(key);
+            }
         }
     }
 
@@ -126,63 +387,163 @@ public class FT8SignalListener {
                     onFt8Listen.beforeListen(utc);
                 }
 
-//                float[] tempData = ints2floats(data);
+                int mode = GeneralVariables.decodeMode;
+                ArrayList<Ft8Message> decoded = null;
 
-
-                ///读入音频数据，并做预处理
-                //其实这种方式要注意一个问题，在一个周期之内，必须解码完毕，否则新的解码又要开始了
-                long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE
-                        , voiceData.length, true);
-//                        , tempData.length, true);
-                DecoderMonitorPressFloat(voiceData, ft8Decoder);//读入音频数据
-//                DecoderMonitorPressFloat(tempData, ft8Decoder);//读入音频数据
-
-
-                ArrayList<Ft8Message> allMsg = new ArrayList<>();
-//                ArrayList<Ft8Message> msgs = runDecode(utc, voiceData,false);
-                ArrayList<Ft8Message> msgs = runDecode(ft8Decoder, utc, false);
-                addMsgToList(allMsg, msgs);
-                timeSec = System.currentTimeMillis() - time;
-                decodeTimeSec.postValue(timeSec);//解码耗时
-                if (onFt8Listen != null) {
-                    onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, false);
-                }
-
-
-                if (GeneralVariables.deepDecodeMode) {//进入深度解码模式
-                    //float[] newSignal=tempData;
-                    msgs = runDecode(ft8Decoder, utc, true);
-                    addMsgToList(allMsg, msgs);
-                    timeSec = System.currentTimeMillis() - time;
-                    decodeTimeSec.postValue(timeSec);//解码耗时
-                    if (onFt8Listen != null) {
-                        onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, true);
+                //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
+                if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
+                    boolean deep = GeneralVariables.isWsjtxDeepMode();
+                    if (GeneralVariables.isWsjtxParallelMode()) {
+                        decoded = decodeByWsjtxParallel(utc, voiceData, deep);
                     }
-
-                    do {
-                        if (timeSec > FT8Common.DEEP_DECODE_TIMEOUT) break;//此处做超时检测，超过一定时间(7秒)，就不做减码操作了
-                        //减去解码的信号
-                        ReBuildSignal.subtractSignal(ft8Decoder, a91List);
-
-                        //再做一次解码
-                        msgs = runDecode(ft8Decoder, utc, true);
-                        addMsgToList(allMsg, msgs);
-                        timeSec = System.currentTimeMillis() - time;
-                        decodeTimeSec.postValue(timeSec);//解码耗时
-                        if (onFt8Listen != null) {
-                            onFt8Listen.afterDecode(utc, averageOffset(allMsg), UtcTimer.sequential(utc), msgs, true);
-                        }
-
-                    } while (msgs.size() > 0 );
-
+                    //多核分段失败时退回单实例 wsjtx
+                    if (decoded == null) {
+                        decoded = decodeByWsjtx(utc, voiceData, deep);
+                    }
+                    if (decoded == null) {
+                        //当前设备ABI没有对应so（如armeabi-v7a/x86），后续直接回退
+                        wsjtxAvailable = false;
+                    } else {
+                        //解码成功后单独回调；回调里的异常不能反过来触发重新解码
+                        publishWsjtxMessages(utc, decoded, deep, time);
+                    }
                 }
-                //移到finalize() 方法中调用了
-                DeleteDecoder(ft8Decoder);
+
+                if (decoded == null) {
+                    //wsjtx普通回退到快速解码，wsjtx深度回退到多次解码
+                    boolean deep = mode == GeneralVariables.DECODE_MODE_DEEP
+                            || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP
+                            || mode == GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL;
+                    decodeByLegacy(utc, voiceData, deep, time);
+                }
 
                 Log.d(TAG, String.format("解码耗时:%d毫秒", System.currentTimeMillis() - time));
-
             }
         }).start();
+    }
+
+    /**
+     * 使用 mfsk-core（WSJT-X 算法）解码一个时隙。
+     *
+     * @param utc       当前时隙的UTC时间
+     * @param voiceData 12kHz、float音频
+     * @param deep      true=BP_ALL_OSD + DEEP门限
+     * @return 消息列表；返回null表示库不可用或出错，需要回退
+     */
+    ArrayList<Ft8Message> decodeByWsjtx(long utc, float[] voiceData, boolean deep) {
+        try {
+            WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
+                    voiceData, FT8Common.SAMPLE_RATE, deep);
+            return toFt8Messages(rows, utc, deep);
+        } catch (Throwable e) {
+            //UnsatisfiedLinkError、ExceptionInInitializerError等都从这里回退
+            Log.e(TAG, "wsjtx解码不可用，回退到原解码器：" + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 使用频谱分段并行方式解码一个时隙（只用于 wsjtx 多核挡位）。
+     *
+     * @return 消息列表；返回null表示分段解码整体失败，应退回单实例 wsjtx
+     */
+    ArrayList<Ft8Message> decodeByWsjtxParallel(long utc, float[] voiceData,
+                                                boolean deep) {
+        try {
+            WsjtxDecoder.Row[] rows = getWsjtxBandDecoder().decode(
+                    voiceData, FT8Common.SAMPLE_RATE, deep);
+            return toFt8Messages(rows, utc, deep);
+        } catch (Throwable e) {
+            Log.e(TAG, "wsjtx分段解码失败，回退到单实例：" + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private synchronized WsjtxBandDecoder getWsjtxBandDecoder() {
+        if (wsjtxBandDecoder == null) {
+            wsjtxBandDecoder = new WsjtxBandDecoder();
+        }
+        return wsjtxBandDecoder;
+    }
+
+    /**
+     * 更新耗时并回调解码结果。回调异常只记录日志，绝不影响解码流程。
+     */
+    private void publishWsjtxMessages(long utc, ArrayList<Ft8Message> msgs,
+                                      boolean deep, long startTime) {
+        timeSec = System.currentTimeMillis() - startTime;
+        decodeTimeSec.postValue(timeSec);//解码耗时
+        //wsjtx一个时隙只解码一次，回调按普通解码处理，
+        //保证自动通联逻辑对wsjtx深度的结果也生效
+        safeAfterDecode(utc, msgs, msgs, false);
+        Log.d(TAG, String.format("wsjtx解码完成，共%d条", msgs.size()));
+    }
+
+    /**
+     * 调用 afterDecode，但把下游异常挡在解码流程之外。
+     */
+    private void safeAfterDecode(long utc, ArrayList<Ft8Message> allMsg,
+                                 ArrayList<Ft8Message> msgs, boolean isDeep) {
+        synchronized (callbackLock) {
+            try {
+                if (onFt8Listen != null) {
+                    onFt8Listen.afterDecode(utc, averageOffset(allMsg)
+                            , UtcTimer.sequential(utc), msgs, isDeep);
+                }
+            } catch (Throwable e) {
+                Log.e(TAG, "afterDecode回调异常（解码结果不受影响）：" + e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * 原来的FT8CN解码流程（快速/多次解码）。
+     *
+     * @param utc       当前时隙的UTC时间
+     * @param voiceData 12kHz、float音频
+     * @param deep      true=多次解码
+     * @param startTime 本轮解码的开始时间
+     * @return 本轮解出的全部消息
+     */
+    ArrayList<Ft8Message> decodeByLegacy(long utc, float[] voiceData, boolean deep, long startTime) {
+        ///读入音频数据，并做预处理
+        //其实这种方式要注意一个问题，在一个周期之内，必须解码完毕，否则新的解码又要开始了
+        long ft8Decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE
+                , voiceData.length, true);
+        DecoderMonitorPressFloat(voiceData, ft8Decoder);//读入音频数据
+
+        ArrayList<Ft8Message> allMsg = new ArrayList<>();
+        ArrayList<Ft8Message> msgs = runDecode(ft8Decoder, utc, false);
+        addMsgToList(allMsg, msgs);
+        timeSec = System.currentTimeMillis() - startTime;
+        decodeTimeSec.postValue(timeSec);//解码耗时
+        safeAfterDecode(utc, allMsg, msgs, false);
+
+        if (deep) {//进入多次解码模式
+            msgs = runDecode(ft8Decoder, utc, true);
+            addMsgToList(allMsg, msgs);
+            timeSec = System.currentTimeMillis() - startTime;
+            decodeTimeSec.postValue(timeSec);//解码耗时
+            safeAfterDecode(utc, allMsg, msgs, true);
+
+            do {
+                if (timeSec > FT8Common.DEEP_DECODE_TIMEOUT) break;//此处做超时检测，超过一定时间(7秒)，就不做减码操作了
+                //减去解码的信号
+                ReBuildSignal.subtractSignal(ft8Decoder, a91List);
+
+                //再做一次解码
+                msgs = runDecode(ft8Decoder, utc, true);
+                addMsgToList(allMsg, msgs);
+                timeSec = System.currentTimeMillis() - startTime;
+                decodeTimeSec.postValue(timeSec);//解码耗时
+                safeAfterDecode(utc, allMsg, msgs, true);
+
+            } while (msgs.size() > 0);
+
+        }
+        //移到finalize() 方法中调用了
+        DeleteDecoder(ft8Decoder);
+        return allMsg;
     }
 
 
@@ -225,6 +586,182 @@ public class FT8SignalListener {
 
 
         return ft8Messages;
+    }
+
+    /**
+     * 把mfsk-core的解码行转换成Ft8Message列表。
+     *
+     * @param rows   解码行
+     * @param utc    当前时隙的UTC时间
+     * @param isDeep 是否深度解码
+     * @return Ft8Message列表
+     */
+    private ArrayList<Ft8Message> toFt8Messages(WsjtxDecoder.Row[] rows,
+                                                long utc, boolean isDeep) {
+        ArrayList<Ft8Message> out = new ArrayList<>();
+        if (rows == null) return out;
+
+        for (WsjtxDecoder.Row row : rows) {
+            Ft8Message msg = toFt8Message(row, utc, isDeep);
+            //与原来的解码器保持一致：相同报文只保留一条
+            if (msg != null && !checkMessageSame(out, msg)) out.add(msg);
+        }
+        return out;
+    }
+
+    /**
+     * 把一条mfsk-core解码行转换成Ft8Message。
+     *
+     * @param row    解码行
+     * @param utc    当前时隙的UTC时间
+     * @param isDeep 是否深度解码
+     * @return Ft8Message，无法转换时返回null
+     */
+    private Ft8Message toFt8Message(WsjtxDecoder.Row row, long utc, boolean isDeep) {
+        if (row == null) return null;
+
+        String text = row.text == null ? "" : row.text.trim();
+        if (text.isEmpty()) return null;
+
+        Ft8Message msg = new Ft8Message(FT8Common.FT8_MODE);
+        msg.utcTime = utc;
+        msg.isValid = true;
+        msg.snr = Math.round(row.snr);
+        msg.time_sec = row.dt;
+        msg.freq_hz = row.freq;
+        msg.band = GeneralVariables.band;
+        msg.signalFormat = FT8Common.FT8_MODE;
+        msg.isWeakSignal = isDeep;
+        //空字符串而不是 null：下游 getCallsignAndGrid/addCallsignQTH 会直接使用
+        msg.maidenGrid = "";
+
+        parseWsjtxText(msg, text);
+        parseWsjtxExtra(msg);
+        return msg;
+    }
+
+    /**
+     * 解析mfsk-core返回的可读报文，尽量还原callsignTo/callsignFrom/extraInfo，
+     * 保证getMessageText()显示的内容与原报文一致。
+     *
+     * @param msg  Ft8Message
+     * @param text 可读报文
+     */
+    private void parseWsjtxText(Ft8Message msg, String text) {
+        String[] tokens = text.split("\\s+");
+        msg.callsignTo = "";
+        msg.callsignFrom = "";
+        msg.extraInfo = text;
+        msg.i3 = 0;
+        msg.n3 = 0;
+
+        if (tokens.length >= 2 && isCqPrefix(tokens[0])) {
+            //CQ [修饰符] 呼号 [附加信息]，例如：CQ POTA BG7YOZ OL50
+            msg.callsignTo = tokens[0];
+            if (tokens.length >= 3 && looksLikeCallsign(tokens[1])
+                    && looksLikeCallsign(tokens[2]) && !looksLikeGrid(tokens[2])) {
+                //第三个词不是网格，才把第二个词当作CQ修饰符（DX/POTA/TEST等）；
+                //否则 "CQ OK6LZ JN99" 会把网格误当成呼号
+                msg.modifier = tokens[1];
+                msg.callsignFrom = tokens[2];
+                msg.extraInfo = joinTokens(tokens, 3);
+            } else if (looksLikeCallsign(tokens[1])) {
+                msg.callsignFrom = tokens[1];
+                msg.extraInfo = joinTokens(tokens, 2);
+            } else {
+                return;//不认识的内容按自由文本显示
+            }
+            msg.i3 = isNonStandardCallsign(msg.callsignFrom) ? 4 : 1;
+            msg.n3 = 0;
+            return;
+        }
+
+        if (tokens.length >= 2 && looksLikeCallsign(tokens[0])
+                && looksLikeCallsign(tokens[1])) {
+            //标准通联报文，例如：JA1ABC DL1ABC -12
+            msg.callsignTo = tokens[0];
+            msg.callsignFrom = tokens[1];
+            msg.extraInfo = joinTokens(tokens, 2);
+            msg.i3 = (isNonStandardCallsign(tokens[0])
+                    || isNonStandardCallsign(tokens[1])) ? 4 : 1;
+            msg.n3 = 0;
+            return;
+        }
+
+        //自由文本：FT8自由文本最多13个字符；更长的内容（DXpedition、
+        //Field Day等特殊报文）放进i3=1的附加信息，避免显示时被截断。
+        if (text.length() > 13) {
+            msg.i3 = 1;
+            msg.n3 = 0;
+        }
+    }
+
+    /**
+     * 从附加信息中提取信号报告和梅登海德网格。
+     *
+     * @param msg Ft8Message
+     */
+    private void parseWsjtxExtra(Ft8Message msg) {
+        if (msg.extraInfo == null || msg.extraInfo.isEmpty()) return;
+
+        String[] tokens = msg.extraInfo.split("\\s+");
+        for (String token : tokens) {
+            String s = token.toUpperCase();
+            //FT8的信号报告一定带正负号，避免把73、RR73当成报告
+            if (msg.report == -100 && s.matches("R?[+-]\\d{1,2}")) {
+                try {
+                    msg.report = Integer.parseInt(s.startsWith("R")
+                            ? s.substring(1) : s);
+                } catch (NumberFormatException ignored) {
+                }
+            } else if (msg.maidenGrid == null
+                    && s.matches("[A-R]{2}[0-9]{2}([A-X]{2})?")) {
+                msg.maidenGrid = s;
+            }
+        }
+    }
+
+    private boolean isCqPrefix(String token) {
+        return "CQ".equals(token) || "DE".equals(token) || "QRZ".equals(token);
+    }
+
+    private boolean looksLikeCallsign(String token) {
+        if (token == null || token.isEmpty() || token.length() > 13) return false;
+
+        boolean hasLetter = false;
+        for (int i = 0; i < token.length(); i++) {
+            char c = Character.toUpperCase(token.charAt(i));
+            if (c >= 'A' && c <= 'Z') {
+                hasLetter = true;
+            } else if (!(c >= '0' && c <= '9')
+                    && c != '/' && c != '<' && c != '>') {
+                return false;
+            }
+        }
+        return hasLetter;
+    }
+
+    private boolean isNonStandardCallsign(String callsign) {
+        return callsign != null && (callsign.indexOf('/') >= 0
+                || callsign.indexOf('<') >= 0 || callsign.indexOf('>') >= 0);
+    }
+
+    /**
+     * 是不是4位或6位梅登海德网格，例如 JN99、PM95AA。
+     */
+    private boolean looksLikeGrid(String token) {
+        return token != null && token.toUpperCase().matches("[A-R]{2}[0-9]{2}([A-X]{2})?");
+    }
+
+    private String joinTokens(String[] tokens, int from) {
+        if (tokens.length <= from) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = from; i < tokens.length; i++) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(tokens[i]);
+        }
+        return sb.toString();
     }
 
     /**

@@ -754,6 +754,11 @@
     <string name="decode_mode_text">デコードモード</string>
     <string name="fast_mode">高速</string>
     <string name="deep_mode">ディープ</string>
+    <string name="wsjtx_mode">wsjtx通常</string>
+    <string name="wsjtx_deep_mode">wsjtxディープ</string>
+    <string name="wsjtx_parallel_mode">wsjtx通常マルチコア</string>
+    <string name="wsjtx_deep_parallel_mode">wsjtxディープマルチコア</string>
+    <string name="hybrid_deep_fast_mode">先行ディープ + 高速</string>
     <string name="export_null">このデバイスと同じLANに接続し、ほかのデバイスでウェブブラウザーを利用してエクスポートしてください。\nブラウザーのアドレスバーに次の内容を入力してください：\n有効なWiFiに接続してください。</string>
     <string name="deep_mode_help">decode_help_en.txt</string>
     <string name="null_task_html">タスクが存在しません!</string>
