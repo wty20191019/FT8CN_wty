@@ -5,7 +5,7 @@ wsjtx Normal: Decode one pass with the WSJT-X algorithm library (mfsk-core).
 wsjtx Deep: Same as wsjtx Normal, but enables the full LLR/BP/OSD fallback and a looser acceptance threshold; more weak signals, longer decoding.
 wsjtx Normal multi-core: Split 100-3000 Hz into bands (100 Hz overlap) and decode them in parallel on multiple CPU cores, then merge and deduplicate.
 wsjtx Deep multi-core: wsjtx Deep parameters plus spectrum-band parallelism.
-Early deep + fast: start wsjtx Deep multi-core 500 ms before slot end on 14.5 s audio, then run the original fast decoder at slot end. Deep results are displayed first but do not trigger automatic QSO; the fast result triggers it. If Deep does not finish within the 500 ms window (by slot end), its results are discarded and only the fast result is used.
+Early deep + fast: start wsjtx Deep multi-core before slot end, then run the original fast decoder at slot end. Deep results are displayed first but do not trigger automatic QSO; the fast result triggers it. The early window is adaptive: 500 ms by default, +100 ms on timeout, -100 ms after 3 consecutive successes, range 200-1800 ms. Deep results are discarded if they miss the window; only the fast result is used then.
 * Note: Deep decoding and wsjtx Deep require longer decoding time and more battery consumption.
 * Note: every band performs its own whole-slot FFT, so more bands is not always faster; the band count defaults to the CPU core count, capped at 8.
 * Note: wsjtx modes require arm64-v8a or x86_64 devices; other devices fall back to the original decoder automatically.
