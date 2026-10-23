@@ -1,10 +1,6 @@
 Decode mode:
-Fast decode: Default mode, one decoding pass on received audio.
-Deep decode: Recursive decoding that process received audio in multiple passes.
-wsjtx Normal: Decode one pass with the WSJT-X algorithm library (mfsk-core).
-wsjtx Deep: Same as wsjtx Normal, but enables the full LLR/BP/OSD fallback and a looser acceptance threshold; more weak signals, longer decoding.
-wsjtx Normal multi-core: Split 100-3000 Hz into bands (100 Hz overlap) and decode them in parallel on multiple CPU cores, then merge and deduplicate.
-wsjtx Deep multi-core: wsjtx Deep parameters plus spectrum-band parallelism.
-* Note: Deep decoding and wsjtx Deep require longer decoding time and more battery consumption.
-* Note: every band performs its own whole-slot FFT, so more bands is not always faster; the band count defaults to the CPU core count, capped at 8.
-* Note: wsjtx modes require arm64-v8a or x86_64 devices; other devices fall back to the original decoder automatically.
+Fast decode: Default mode, one decoding pass on received audio; the fastest option.
+Deep decode: Multiple passes with signal subtraction on top of fast decode; more weak signals, longer decoding.
+wsjtx Normal multi-core: Use the WSJT-X algorithm library (mfsk-core), split 100-3000 Hz into bands (up to 4, 100 Hz overlap) and decode them in parallel, then merge and deduplicate.
+* Note: Deep decode and wsjtx Normal multi-core consume more battery and generate more heat during long monitoring.
+* Note: wsjtx Normal multi-core requires arm64-v8a or x86_64 devices; other devices fall back to the original decoder automatically.

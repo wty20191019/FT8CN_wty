@@ -478,7 +478,7 @@
     <string name="html_comment">备注</string>
     <string name="decode_mode_text">解码模式</string>
     <string name="fast_mode">快速解码</string>
-    <string name="deep_mode">多次解码</string>
+    <string name="deep_mode">深度解码</string>
     <string name="wsjtx_mode">wsjtx普通</string>
     <string name="wsjtx_deep_mode">wsjtx深度</string>
     <string name="wsjtx_parallel_mode">wsjtx普通多核</string>

@@ -2197,9 +2197,13 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                 if (name.equalsIgnoreCase("decodeMode")) {//解码挡位
                     try {
                         int mode = Integer.parseInt(result);
-                        if (mode >= GeneralVariables.DECODE_MODE_FAST
-                                && mode <= GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL) {
+                        if (mode == GeneralVariables.DECODE_MODE_FAST
+                                || mode == GeneralVariables.DECODE_MODE_DEEP
+                                || mode == GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
                             GeneralVariables.decodeMode = mode;
+                        } else if (mode >= 2) {
+                            // 旧版的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核
+                            GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
                         }
                     } catch (NumberFormatException e) {
                         Log.e(TAG, "doInBackground: decodeMode " + e.getMessage());

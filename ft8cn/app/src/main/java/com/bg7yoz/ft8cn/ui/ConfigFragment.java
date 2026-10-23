@@ -1115,22 +1115,21 @@ public class ConfigFragment extends Fragment {
 
 
     private void setDecodeMode() {
+        // 只保留三档：快速、深度、wsjtx普通多核。
+        // 旧配置里的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核。
+        if (GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_FAST
+                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_DEEP
+                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
+            GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
+        }
+
         binding.decodeModeRadioGroup.clearCheck();
         switch (GeneralVariables.decodeMode) {
             case GeneralVariables.DECODE_MODE_DEEP:
                 binding.deepDecodeRadioButton.setChecked(true);
                 break;
-            case GeneralVariables.DECODE_MODE_WSJTX:
-                binding.wsjtxDecodeRadioButton.setChecked(true);
-                break;
-            case GeneralVariables.DECODE_MODE_WSJTX_DEEP:
-                binding.wsjtxDeepDecodeRadioButton.setChecked(true);
-                break;
             case GeneralVariables.DECODE_MODE_WSJTX_PARALLEL:
                 binding.wsjtxParallelDecodeRadioButton.setChecked(true);
-                break;
-            case GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL:
-                binding.wsjtxDeepParallelDecodeRadioButton.setChecked(true);
                 break;
             case GeneralVariables.DECODE_MODE_FAST:
             default:
@@ -1144,19 +1143,13 @@ public class ConfigFragment extends Fragment {
                 int buttonId = view.getId();
                 if (buttonId == binding.deepDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_DEEP;
-                } else if (buttonId == binding.wsjtxDecodeRadioButton.getId()) {
-                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX;
-                } else if (buttonId == binding.wsjtxDeepDecodeRadioButton.getId()) {
-                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_DEEP;
                 } else if (buttonId == binding.wsjtxParallelDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
-                } else if (buttonId == binding.wsjtxDeepParallelDecodeRadioButton.getId()) {
-                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_DEEP_PARALLEL;
                 } else {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_FAST;
                 }
                 writeConfig("decodeMode", String.valueOf(GeneralVariables.decodeMode));
-                //同时写入旧键，方便旧版本读取（旧版本只认识快速/多次）
+                //同时写入旧键，方便旧版本读取（旧版本只认识快速/深度）
                 writeConfig("deepMode"
                         , GeneralVariables.decodeMode == GeneralVariables.DECODE_MODE_DEEP ? "1" : "0");
             }
@@ -1164,10 +1157,7 @@ public class ConfigFragment extends Fragment {
 
         binding.fastDecodeRadioButton.setOnClickListener(listener);
         binding.deepDecodeRadioButton.setOnClickListener(listener);
-        binding.wsjtxDecodeRadioButton.setOnClickListener(listener);
-        binding.wsjtxDeepDecodeRadioButton.setOnClickListener(listener);
         binding.wsjtxParallelDecodeRadioButton.setOnClickListener(listener);
-        binding.wsjtxDeepParallelDecodeRadioButton.setOnClickListener(listener);
 
     }
 

@@ -517,10 +517,7 @@ public class GeneralVariables {
      * @return true 表示使用 mfsk-core 解码
      */
     public static boolean isWsjtxDecodeMode() {
-        return decodeMode == DECODE_MODE_WSJTX
-                || decodeMode == DECODE_MODE_WSJTX_DEEP
-                || decodeMode == DECODE_MODE_WSJTX_PARALLEL
-                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
+        return decodeMode == DECODE_MODE_WSJTX_PARALLEL;
     }
 
     /**
@@ -529,8 +526,7 @@ public class GeneralVariables {
      * @return true 表示使用多核分段解码
      */
     public static boolean isWsjtxParallelMode() {
-        return decodeMode == DECODE_MODE_WSJTX_PARALLEL
-                || decodeMode == DECODE_MODE_WSJTX_DEEP_PARALLEL;
+        return decodeMode == DECODE_MODE_WSJTX_PARALLEL;
     }
 
     /**
