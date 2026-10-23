@@ -492,8 +492,8 @@
     <string name="wsjtx_deep_mode">wsjtx Deep</string>
     <string name="wsjtx_parallel_mode">wsjtx Normal multi-core</string>
     <string name="mixed_mode">Mixed mode</string>
-    <string name="mixed_mode_short">fast+wsjt</string>
-    <string name="decoding_takes_milliseconds_mixed">Decoded : %d ms (fast+wsjt)</string>
+    <string name="mixed_mode_short">&quot;fast&quot;+&quot;wsjt&quot;</string>
+    <string name="decoding_takes_milliseconds_mixed">Decoded : %d ms (&quot;fast&quot;+&quot;wsjt&quot;)</string>
     <string name="wsjtx_deep_parallel_mode">wsjtx Deep multi-core</string>
     <string name="export_null">Export from WebUI via web browser on another device under the same LAN \n Please connect to a valid Wi-Fi</string>
     <string name="null_task_html">Task not exist!</string>
