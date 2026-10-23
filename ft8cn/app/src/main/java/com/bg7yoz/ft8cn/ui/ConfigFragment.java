@@ -379,9 +379,6 @@ public class ConfigFragment extends Fragment {
         //设置录音音源
         setAudioInputSourceSpinner();
 
-        //设置显示消息模式
-        setMessageMode();
-
         //设置控制模式 VOX CAT
         setControlMode();
 
@@ -1204,36 +1201,6 @@ public class ConfigFragment extends Fragment {
 
 
 
-    /**
-     * 设置消息列表显示模式
-     */
-    private void setMessageMode() {
-        binding.messageModeRadioGroup.clearCheck();
-        if (GeneralVariables.simpleCallItemMode){
-            binding.msgSimpleRadioButton.setChecked(true);
-        }else {
-            binding.msgStandardRadioButton.setChecked(true);
-        }
-
-
-
-        View.OnClickListener listener = new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                int buttonId = binding.messageModeRadioGroup.getCheckedRadioButtonId();
-                GeneralVariables.simpleCallItemMode=
-                        binding.messageModeRadioGroup.getCheckedRadioButtonId()
-                                ==binding.msgSimpleRadioButton.getId();
-
-                writeConfig("msgMode", GeneralVariables.simpleCallItemMode?"1":"0");
-            }
-        };
-
-        binding.msgStandardRadioButton.setOnClickListener(listener);
-        binding.msgSimpleRadioButton.setOnClickListener(listener);
-    }
-
-
 
 
     /**
@@ -1455,16 +1422,6 @@ public class ConfigFragment extends Fragment {
                 new HelpDialog(requireContext(), requireActivity()
                         , GeneralVariables.getStringFromResource(R.string.serial_setting_help)
                         , true).show();
-            }
-        });
-
-        //显示列表方式
-        binding.messageModeeHelpImageButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                new HelpDialog(requireContext(),requireActivity()
-                        ,GeneralVariables.getStringFromResource(R.string.message_mode_help)
-                        ,true).show();
             }
         });
 

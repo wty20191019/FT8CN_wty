@@ -184,25 +184,11 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
         return ft8MessageArrayList.size();
     }
 
-    /**
-     * 精简/标准模式使用不同布局，必须返回不同 viewType，
-     * 否则切换模式后 RecyclerView 会复用旧布局的 ViewHolder。
-     */
-    @Override
-    public int getItemViewType(int position) {
-        return GeneralVariables.simpleCallItemMode ? 1 : 0;
-    }
-
     @NonNull
     @Override
     public CallingListItemHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
-        View view;
-        if (viewType == 1) {
-            view = layoutInflater.inflate(R.layout.call_list_holder_simple_item, parent, false);
-        } else {
-            view = layoutInflater.inflate(R.layout.call_list_holder_item, parent, false);
-        }
+        View view = layoutInflater.inflate(R.layout.call_list_holder_item, parent, false);
         return new CallingListItemHolder(view, onItemClickListener, menuListener);
     }
 
@@ -369,16 +355,7 @@ public class CallingListAdapter extends RecyclerView.Adapter<CallingListAdapter.
             holder.dxccFromImageView.setVisibility(View.GONE);
             holder.ituFromImageView.setVisibility(View.GONE);
             holder.cqFromImageView.setVisibility(View.GONE);
-        } else if (GeneralVariables.simpleCallItemMode){//简单列表模式
-            holder.bandItemTextView.setVisibility(View.GONE);
-            holder.callingListDistTextView.setVisibility(View.GONE);
-            holder.callingListCommandIInfoTextView.setVisibility(View.GONE);
-            holder.callingUtcTextView.setVisibility(View.GONE);
-            holder.callingListCallsignToTextView.setVisibility(View.GONE);
-            holder.dxccToImageView.setVisibility(View.GONE);
-            holder.ituToImageView.setVisibility(View.GONE);
-            holder.cqToImageView.setVisibility(View.GONE);
-        }else {//标准列表模式
+        } else {//标准列表模式
             holder.callingListIdBTextView.setVisibility(View.VISIBLE);
             holder.callListDtTextView.setVisibility(View.VISIBLE);
             holder.bandItemTextView.setVisibility(View.VISIBLE);

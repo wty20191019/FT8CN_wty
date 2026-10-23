@@ -192,25 +192,6 @@ public class CallingListFragment extends Fragment {
             }
         });
 
-        //切换精简模式和标准模式
-        binding.callingListToolsBar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                GeneralVariables.simpleCallItemMode = !GeneralVariables.simpleCallItemMode;
-                // 不同模式使用不同 viewType，notify 后 RecyclerView 会创建新布局，
-                // 不需要也不应该在列表很大时重复 setAdapter。
-                callingListAdapter.refreshData();
-                if (callingListAdapter.getItemCount() > 0) {
-                    callListRecyclerView.scrollToPosition(callingListAdapter.getItemCount() - 1);
-                }
-                if (GeneralVariables.simpleCallItemMode) {
-                    ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_simple_mode));
-                }else {
-                    ToastMessage.show(GeneralVariables.getStringFromResource(R.string.message_list_standard_mode));
-                }
-            }
-        });
-
         return binding.getRoot();
     }
 
