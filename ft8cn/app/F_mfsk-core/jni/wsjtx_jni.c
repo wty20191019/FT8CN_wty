@@ -20,8 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <android/log.h>
 
 #include "mfsk.h"
+
+#define LOG_TAG "wsjtx_jni"
 
 // 与 WsjtxDecoder.java 中的包名/类名严格一致。
 #define WSJTX_MODE_FT8 0
@@ -87,33 +90,74 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_6;
 }
 
+// FT8/FT4 报文只应包含可打印 ASCII。底层偶尔会返回带高位字节的
+// 无效文本，直接交给 NewStringUTF 会触发 JNI abort（非法 UTF-8），
+// 因此这里先过滤掉这类行，避免整个进程被带崩。
+static int is_valid_text(const char *text) {
+    if (text == NULL || text[0] == '\0') return 0;
+    for (size_t i = 0; i < 64; ++i) {
+        unsigned char c = (unsigned char)text[i];
+        if (c == '\0') return 1;
+        if (c < 0x20 || c > 0x7e) return 0;
+    }
+    return 0; // 超长文本同样视为异常
+}
+
+static int is_valid_row(const struct MfskDecode *row) {
+    if (!is_valid_text(row->text)) return 0;
+    // FT8/FT4 的 mode 只有 0/1；数值字段限定在物理可能的范围内，
+    // 用来拦住底层异常返回的未初始化行。
+    if (row->mode != WSJTX_MODE_FT8 && row->mode != WSJTX_MODE_FT4) return 0;
+    if (!(row->freq_hz >= 0.0f && row->freq_hz <= 6000.0f)) return 0;
+    if (!(row->dt_sec >= -5.0f && row->dt_sec <= 5.0f)) return 0;
+    if (!(row->snr_db >= -60.0f && row->snr_db <= 60.0f)) return 0;
+    return 1;
+}
+
 static jobjectArray rows_to_java(JNIEnv *env, const struct MfskDecode *rows, size_t n) {
     jclass string_cls = (*env)->FindClass(env, "java/lang/String");
     if (string_cls == NULL) return NULL;
 
-    jobjectArray out = (*env)->NewObjectArray(env, (jsize)n, string_cls, NULL);
-    if (out == NULL) return NULL;
-
+    size_t valid = 0;
     for (size_t i = 0; i < n; ++i) {
-        char line[256];
-        const char *text = rows[i].text;
-        if (text == NULL) text = "";
+        if (is_valid_row(&rows[i])) ++valid;
+    }
+    if (valid < n) {
+        __android_log_print(ANDROID_LOG_WARN, LOG_TAG,
+                            "skip %zu invalid row(s)", n - valid);
+    }
 
-        // 文本中不会出现 \t；FT8/FT4 报文只使用可打印 ASCII。
-        snprintf(line, sizeof(line), "%s\t%.1f\t%.2f\t%.0f\t%d\t%d",
-                 text,
-                 (double)rows[i].snr_db,
-                 (double)rows[i].dt_sec,
-                 (double)rows[i].freq_hz,
-                 (int)rows[i].mode,
-                 (int)rows[i].flags);
+    jobjectArray out = (*env)->NewObjectArray(env, (jsize)valid, string_cls, NULL);
+    if (out == NULL) {
+        (*env)->DeleteLocalRef(env, string_cls);
+        return NULL;
+    }
+
+    size_t j = 0;
+    for (size_t i = 0; i < n; ++i) {
+        const char *text = rows[i].text;
+        if (!is_valid_row(&rows[i])) continue;
+
+        char line[256];
+        int written = snprintf(line, sizeof(line), "%s\t%.1f\t%.2f\t%.0f\t%d\t%d",
+                               text,
+                               (double)rows[i].snr_db,
+                               (double)rows[i].dt_sec,
+                               (double)rows[i].freq_hz,
+                               (int)rows[i].mode,
+                               (int)rows[i].flags);
+        if (written < 0 || written >= (int)sizeof(line)) {
+            __android_log_print(ANDROID_LOG_WARN, LOG_TAG,
+                                "skip row with oversized text");
+            continue;
+        }
 
         jstring s = (*env)->NewStringUTF(env, line);
         if (s == NULL) {
             (*env)->DeleteLocalRef(env, string_cls);
             return NULL;
         }
-        (*env)->SetObjectArrayElement(env, out, (jsize)i, s);
+        (*env)->SetObjectArrayElement(env, out, (jsize)j++, s);
         (*env)->DeleteLocalRef(env, s);
     }
 
@@ -247,6 +291,7 @@ static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
         throw_illegal_state(env, "out of memory");
         return NULL;
     }
+    memset(rows, 0, cap * sizeof(*rows));
 
     uint32_t rate = sample_rate > 0 ? (uint32_t)sample_rate : 12000u;
     status = mfsk_session_decode_f32(h->session, samples, (uintptr_t)n, rate,
@@ -263,6 +308,7 @@ static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
             return NULL;
         }
         rows = grown;
+        memset(rows + cap, 0, (out_len - cap) * sizeof(*rows));
         cap = out_len;
         status = mfsk_session_decode_f32(h->session, samples, (uintptr_t)n, rate,
                                          &params, rows, cap, &out_len);
