@@ -133,6 +133,7 @@ public class MainViewModel extends ViewModel {
 
     public MutableLiveData<Boolean> mutableIsFlexRadio = new MutableLiveData<>();//是不是flex电台
     public MutableLiveData<Boolean> mutableIsXieguRadio = new MutableLiveData<>();//是不是flex电台
+    private long lastHealthLogTime = 0;//长时间运行时的内存/线程诊断日志
 
     // 这两个任务都不需要并发执行。使用单线程池，避免长时间运行时
     // 数据库/电台操作变慢后 cachedThreadPool 不断创建线程。
@@ -279,7 +280,18 @@ public class MainViewModel extends ViewModel {
         utcTimer = new UtcTimer(10, false, new OnUtcTimer() {
             @Override
             public void doHeartBeatTimer(long utc) {//不触发时的时钟信息
-
+                long now = System.currentTimeMillis();
+                if (now - lastHealthLogTime >= 60000) {
+                    lastHealthLogTime = now;
+                    Runtime runtime = Runtime.getRuntime();
+                    Log.i(TAG, String.format(
+                            "运行状态：Java=%d/%dKB 线程=%d 消息=%d 呼叫=%d",
+                            (runtime.totalMemory() - runtime.freeMemory()) / 1024,
+                            runtime.maxMemory() / 1024,
+                            Thread.activeCount(),
+                            ft8Messages.size(),
+                            GeneralVariables.transmitMessages.size()));
+                }
             }
 
             @Override
