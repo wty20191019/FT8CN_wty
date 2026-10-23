@@ -21,8 +21,8 @@ android {
         applicationId "com.bg7yoz.ft8cn"
         minSdk 23
         targetSdk 33
-        versionCode 20261019
-        versionName '2026.10.19'
+        versionCode 20261023_2
+        versionName '2026.10.23'
 
 
         dataBinding{
