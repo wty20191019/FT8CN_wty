@@ -2114,6 +2114,21 @@ enum MfskStatus mfsk_session_copy_info(const struct MfskDecodeSession *dec,
                                        uintptr_t *out_len);
 
 /**
+ * Structured fields for the `index`-th row of the last decode.
+ *
+ * Writes a tab-separated line:
+ * `i3 \t n3 \t call_to \t call_from \t extra \t report \t grid`.
+ * This lets a JNI/UI layer stop guessing message structure from the rendered
+ * text. Returns `MfskStatus::InvalidArg` when the row has no 77-bit payload
+ * or the output buffer is too small.
+ */
+MFSK_API
+enum MfskStatus mfsk_session_copy_fields(const struct MfskDecodeSession *dec,
+                                         uintptr_t index,
+                                         char *out,
+                                         uintptr_t cap);
+
+/**
  * Teach the handle a callsign, so a later slot's `<...>` reference to
  * it resolves.
  *

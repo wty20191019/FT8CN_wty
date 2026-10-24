@@ -157,14 +157,36 @@ public final class WsjtxDecoder implements AutoCloseable {
         public final int mode;
         /** bit0 = 用到呼号哈希表；其他位保留。 */
         public final int flags;
+        /**
+         * 以下字段由 mfsk-core 从同一行 77 bit 载荷结构化解析，
+         * 不再由 Java 根据文本猜测。旧版 so 没有这些字段时 structured=false。
+         */
+        public final boolean structured;
+        public final int i3;
+        public final int n3;
+        public final int report;
+        public final String callTo;
+        public final String callFrom;
+        public final String extra;
+        public final String grid;
 
-        private Row(String text, float snr, float dt, float freq, int mode, int flags) {
+        private Row(String text, float snr, float dt, float freq, int mode, int flags,
+                    boolean structured, int i3, int n3, String callTo, String callFrom,
+                    String extra, int report, String grid) {
             this.text = text;
             this.snr = snr;
             this.dt = dt;
             this.freq = freq;
             this.mode = mode;
             this.flags = flags;
+            this.structured = structured;
+            this.i3 = i3;
+            this.n3 = n3;
+            this.callTo = callTo;
+            this.callFrom = callFrom;
+            this.extra = extra;
+            this.report = report;
+            this.grid = grid;
         }
 
         static Row parse(String line) {
@@ -176,13 +198,24 @@ public final class WsjtxDecoder implements AutoCloseable {
                 return null;
             }
             try {
+                boolean structured = f.length >= 13;
+                int i3 = structured ? Integer.parseInt(f[6]) : 0;
+                int n3 = structured ? Integer.parseInt(f[7]) : 0;
+                String callTo = structured ? f[8] : "";
+                String callFrom = structured ? f[9] : "";
+                String extra = structured ? f[10] : "";
+                int report = structured ? Integer.parseInt(f[11]) : -100;
+                String grid = structured ? f[12] : "";
+
                 return new Row(
                         f[0],
                         Float.parseFloat(f[1]),
                         Float.parseFloat(f[2]),
                         Float.parseFloat(f[3]),
                         Integer.parseInt(f[4]),
-                        Integer.parseInt(f[5]));
+                        Integer.parseInt(f[5]),
+                        structured && i3 >= 0 && n3 >= 0,
+                        i3, n3, callTo, callFrom, extra, report, grid);
             } catch (NumberFormatException e) {
                 return null;
             }
@@ -191,8 +224,10 @@ public final class WsjtxDecoder implements AutoCloseable {
         @Override
         public String toString() {
             return String.format(Locale.US,
-                    "%s  snr=%.1f dt=%.2f freq=%.0f mode=%d flags=%d",
-                    text, snr, dt, freq, mode, flags);
+                    "%s  snr=%.1f dt=%.2f freq=%.0f mode=%d flags=%d"
+                            + " i3=%d n3=%d to=%s from=%s extra=%s report=%d grid=%s",
+                    text, snr, dt, freq, mode, flags,
+                    i3, n3, callTo, callFrom, extra, report, grid);
         }
     }
 

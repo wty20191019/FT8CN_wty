@@ -114,7 +114,11 @@ static int is_valid_row(const struct MfskDecode *row) {
     return 1;
 }
 
-static jobjectArray rows_to_java(JNIEnv *env, const struct MfskDecode *rows, size_t n) {
+// 新增的结构化字段：i3/n3、呼号、附加信息、报告、网格。
+// 由 mfsk-ffi 从同一行 77 bit 载荷解析，JNI 不再让 Java 猜报文结构。
+
+static jobjectArray rows_to_java(JNIEnv *env, const struct MfskDecodeSession *session,
+                                 const struct MfskDecode *rows, size_t n) {
     jclass string_cls = (*env)->FindClass(env, "java/lang/String");
     if (string_cls == NULL) return NULL;
 
@@ -138,14 +142,26 @@ static jobjectArray rows_to_java(JNIEnv *env, const struct MfskDecode *rows, siz
         const char *text = rows[i].text;
         if (!is_valid_row(&rows[i])) continue;
 
-        char line[256];
-        int written = snprintf(line, sizeof(line), "%s\t%.1f\t%.2f\t%.0f\t%d\t%d",
+        char fields[512];
+        fields[0] = '\0';
+        if (session != NULL) {
+            if (mfsk_session_copy_fields(session, i, fields, sizeof(fields))
+                    != MFSK_STATUS_OK) {
+                fields[0] = '\0';
+            }
+        }
+        const char *structured = fields[0] != '\0' ? fields : "-1\t-1\t\t\t\t-100\t";
+
+        char line[1024];
+        int written = snprintf(line, sizeof(line),
+                               "%s\t%.1f\t%.2f\t%.0f\t%d\t%d\t%s",
                                text,
                                (double)rows[i].snr_db,
                                (double)rows[i].dt_sec,
                                (double)rows[i].freq_hz,
                                (int)rows[i].mode,
-                               (int)rows[i].flags);
+                               (int)rows[i].flags,
+                               structured);
         if (written < 0 || written >= (int)sizeof(line)) {
             __android_log_print(ANDROID_LOG_WARN, LOG_TAG,
                                 "skip row with oversized text");
@@ -322,7 +338,7 @@ static jobjectArray decode_impl(JNIEnv *env, jlong handle, jfloatArray audio,
         return NULL;
     }
 
-    jobjectArray result = rows_to_java(env, rows, out_len);
+    jobjectArray result = rows_to_java(env, h->session, rows, out_len);
     free(rows);
     return result;
 }

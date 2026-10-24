@@ -393,8 +393,24 @@ public class FT8SignalListener {
         //空字符串而不是 null：下游 getCallsignAndGrid/addCallsignQTH 会直接使用
         msg.maidenGrid = "";
 
-        parseWsjtxText(msg, text);
-        parseWsjtxExtra(msg);
+        if (row.structured) {
+            // mfsk-core 已经按 77 bit 载荷给出 i3/n3、呼号、报告和网格，
+            // 不再从可读文本反推，避免特殊报文解析偏差。
+            msg.i3 = row.i3;
+            msg.n3 = row.n3;
+            msg.callsignTo = row.callTo == null ? "" : row.callTo;
+            msg.callsignFrom = row.callFrom == null ? "" : row.callFrom;
+            msg.extraInfo = row.extra == null ? "" : row.extra;
+            msg.report = row.report;
+            msg.maidenGrid = row.grid == null ? "" : row.grid;
+        } else {
+            // 兼容没有结构化字段的旧版 so
+            Log.w(TAG, "wsjtx 行没有结构化字段，回退文本解析");
+            parseWsjtxText(msg, text);
+            parseWsjtxExtra(msg);
+        }
+        // 列表显示始终使用 mfsk-core 的原始可读报文
+        msg.displayText = text;
         return msg;
     }
 
