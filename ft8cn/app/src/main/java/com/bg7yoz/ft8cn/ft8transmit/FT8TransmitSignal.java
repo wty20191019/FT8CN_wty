@@ -137,7 +137,7 @@ public class FT8TransmitSignal {
                         ToastMessage.show(GeneralVariables.getStringFromResource(R.string.callsign_error));
                         return;
                     }
-                    // 多核 wsjtx 解码可能超过发射延时；先等本时隙解码完成，
+                    // 解码可能超过发射延时；先等本时隙解码完成，
                     // 避免用上一轮的旧消息提前发射。
                     waitForDecodeThenTransmit();
                 }
