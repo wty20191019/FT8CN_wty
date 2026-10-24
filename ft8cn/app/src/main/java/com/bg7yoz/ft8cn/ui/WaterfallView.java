@@ -89,6 +89,9 @@ public class WaterfallView extends View {
         setClickable(true);
         blockHeight = getHeight() / (symbols * cycle);
         freq_width = (float) getWidth() / 3000f;
+        if (lastBitMap != null && !lastBitMap.isRecycled()) {
+            lastBitMap.recycle();
+        }
         lastBitMap = Bitmap.createBitmap(w, h, ARGB_8888);
         _canvas = new Canvas(lastBitMap);
         Paint blackPaint = new Paint();
@@ -171,6 +174,7 @@ public class WaterfallView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (lastBitMap == null || lastBitMap.isRecycled()) return;
         canvas.drawBitmap(lastBitMap, 0, 0, null);
 
         //计算频率
@@ -293,6 +297,17 @@ public class WaterfallView extends View {
         }
 
 
+    }
+
+    /**
+     * 页面销毁时主动释放整屏位图，避免等待 GC 期间再次进入频谱页造成 OOM。
+     */
+    public void releaseBitmap() {
+        if (lastBitMap != null && !lastBitMap.isRecycled()) {
+            lastBitMap.recycle();
+        }
+        lastBitMap = null;
+        _canvas = null;
     }
 
     public void setTouch_x(int touch_x) {

@@ -433,7 +433,12 @@ public class CallingListFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
-        super.onDestroyView();
+        if (callListRecyclerView != null) {
+            callListRecyclerView.setAdapter(null);
+        }
+        callListRecyclerView = null;
+        callingListAdapter = null;
         binding = null;
+        super.onDestroyView();
     }
 }

@@ -207,6 +207,17 @@ public class SpectrumFragment extends Fragment {
         }
     }
 
+    @Override
+    public void onDestroyView() {
+        // 频谱/瀑布图持有整屏 Bitmap，离开页面时必须主动释放
+        if (binding != null) {
+            binding.waterfallView.releaseBitmap();
+            binding.columnarView.releaseBitmap();
+        }
+        binding = null;
+        super.onDestroyView();
+    }
+
     public native void getFFTData(int[] data, int fftData[]);
 
     public native void getFFTDataFloat(float[] data ,int fftData[]);
