@@ -599,6 +599,17 @@ public class LogFragment extends Fragment {
     }
 
     @Override
+    public void onDestroyView() {
+        if (binding != null) {
+            binding.logRecyclerView.setAdapter(null);
+        }
+        logCallsignAdapter = null;
+        logQSLAdapter = null;
+        binding = null;
+        super.onDestroyView();
+    }
+
+    @Override
     public void onDestroy() {
         //判断生成共享log线程是否还在工作，如果还在工作，要销毁对话框，防止出现not attached to window manager错误
         if (Boolean.TRUE.equals(mainViewModel.mutableShareRunning.getValue())) {

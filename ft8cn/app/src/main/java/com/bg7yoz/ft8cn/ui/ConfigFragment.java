@@ -379,9 +379,6 @@ public class ConfigFragment extends Fragment {
         //设置录音音源
         setAudioInputSourceSpinner();
 
-        //设置显示消息模式
-        setMessageMode();
-
         //设置控制模式 VOX CAT
         setControlMode();
 
@@ -404,6 +401,7 @@ public class ConfigFragment extends Fragment {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
+                if (binding == null) return;
                 setScrollImageVisible();
             }
         }, 1000);
@@ -709,6 +707,7 @@ public class ConfigFragment extends Fragment {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
+                if (binding == null) return;
                 binding.pttDelayOffsetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
@@ -1204,36 +1203,6 @@ public class ConfigFragment extends Fragment {
 
 
 
-    /**
-     * 设置消息列表显示模式
-     */
-    private void setMessageMode() {
-        binding.messageModeRadioGroup.clearCheck();
-        if (GeneralVariables.simpleCallItemMode){
-            binding.msgSimpleRadioButton.setChecked(true);
-        }else {
-            binding.msgStandardRadioButton.setChecked(true);
-        }
-
-
-
-        View.OnClickListener listener = new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                int buttonId = binding.messageModeRadioGroup.getCheckedRadioButtonId();
-                GeneralVariables.simpleCallItemMode=
-                        binding.messageModeRadioGroup.getCheckedRadioButtonId()
-                                ==binding.msgSimpleRadioButton.getId();
-
-                writeConfig("msgMode", GeneralVariables.simpleCallItemMode?"1":"0");
-            }
-        };
-
-        binding.msgStandardRadioButton.setOnClickListener(listener);
-        binding.msgSimpleRadioButton.setOnClickListener(listener);
-    }
-
-
 
 
     /**
@@ -1458,16 +1427,6 @@ public class ConfigFragment extends Fragment {
             }
         });
 
-        //显示列表方式
-        binding.messageModeeHelpImageButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                new HelpDialog(requireContext(),requireActivity()
-                        ,GeneralVariables.getStringFromResource(R.string.message_mode_help)
-                        ,true).show();
-            }
-        });
-
         //设置ABOUT
         binding.aboutButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -1619,6 +1578,7 @@ public class ConfigFragment extends Fragment {
                         new Handler(Looper.getMainLooper()).post(new Runnable() {
                             @Override
                             public void run() {
+                                if (binding == null) return;
                                 if (result) {
                                     binding.testCloudlogButton.setText(getResources().getString(R.string.pass));
                                 } else {
@@ -1628,6 +1588,7 @@ public class ConfigFragment extends Fragment {
                                 new Handler().postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (binding == null) return;
                                         binding.testCloudlogButton.setEnabled(true);
                                         binding.testCloudlogButton.setText(getResources().getString(R.string.test));
                                     }
@@ -1650,6 +1611,7 @@ public class ConfigFragment extends Fragment {
                         new Handler(Looper.getMainLooper()).post(new Runnable() {
                             @Override
                             public void run() {
+                                if (binding == null) return;
                                 if (result) {
                                     binding.testQrzButton.setText(getResources().getString(R.string.pass));
                                 } else {
@@ -1659,6 +1621,7 @@ public class ConfigFragment extends Fragment {
                                 new Handler().postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (binding == null) return;
                                         binding.testQrzButton.setEnabled(true);
                                         binding.testQrzButton.setText(getResources().getString(R.string.test));
                                     }
@@ -1739,6 +1702,12 @@ public class ConfigFragment extends Fragment {
     /**
      * 设置界面的上下滚动的图标
      */
+    @Override
+    public void onDestroyView() {
+        binding = null;
+        super.onDestroyView();
+    }
+
     private void setScrollImageVisible() {
 
         if (binding.scrollView3.getScrollY() == 0) {

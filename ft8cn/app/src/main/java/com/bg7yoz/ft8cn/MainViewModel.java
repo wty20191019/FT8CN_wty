@@ -30,6 +30,7 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.media.AudioManager;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.lifecycle.MutableLiveData;
@@ -133,11 +134,18 @@ public class MainViewModel extends ViewModel {
 
     public MutableLiveData<Boolean> mutableIsFlexRadio = new MutableLiveData<>();//是不是flex电台
     public MutableLiveData<Boolean> mutableIsXieguRadio = new MutableLiveData<>();//是不是flex电台
+    private long lastHealthLogTime = 0;//长时间运行时的内存/线程诊断日志
 
-    private final ExecutorService getQTHThreadPool = Executors.newCachedThreadPool();
-    private final ExecutorService sendWaveDataThreadPool = Executors.newCachedThreadPool();
+    // 这两个任务都不需要并发执行。使用单线程池，避免长时间运行时
+    // 数据库/电台操作变慢后 cachedThreadPool 不断创建线程。
+    private final ExecutorService getQTHThreadPool
+            = Executors.newSingleThreadExecutor(r -> new Thread(r, "ft8-qth"));
+    private final ExecutorService sendWaveDataThreadPool
+            = Executors.newSingleThreadExecutor(r -> new Thread(r, "ft8-send-wave"));
     private final GetQTHRunnable getQTHRunnable = new GetQTHRunnable(this);
     private final SendWaveDataRunnable sendWaveDataRunnable = new SendWaveDataRunnable();
+    private final java.util.concurrent.atomic.AtomicBoolean getQTHScheduled
+            = new java.util.concurrent.atomic.AtomicBoolean(false);
 
 
     //用于显示生成共享日志过程的变量
@@ -273,7 +281,18 @@ public class MainViewModel extends ViewModel {
         utcTimer = new UtcTimer(10, false, new OnUtcTimer() {
             @Override
             public void doHeartBeatTimer(long utc) {//不触发时的时钟信息
-
+                long now = System.currentTimeMillis();
+                if (now - lastHealthLogTime >= 60000) {
+                    lastHealthLogTime = now;
+                    Runtime runtime = Runtime.getRuntime();
+                    Log.i(TAG, String.format(
+                            "运行状态：Java=%d/%dKB 线程=%d 消息=%d 呼叫=%d",
+                            (runtime.totalMemory() - runtime.freeMemory()) / 1024,
+                            runtime.maxMemory() / 1024,
+                            Thread.activeCount(),
+                            ft8Messages.size(),
+                            GeneralVariables.transmitMessages.size()));
+                }
             }
 
             @Override
@@ -295,17 +314,27 @@ public class MainViewModel extends ViewModel {
             @Override
             public void beforeListen(long utc) {
                 mutableIsDecoding.postValue(true);
+                if (ft8TransmitSignal != null) {
+                    ft8TransmitSignal.setDecoding(true);
+                }
             }
 
             @Override
             public void afterDecode(long utc, float time_sec, int sequential
                     , ArrayList<Ft8Message> messages, boolean isDeep) {
-                if (messages.size() == 0) return;//没有解码出消息，不触发动作
+                if (messages.size() == 0) {
+                    //没有解码出消息，也要放行本时隙的发射等待
+                    if (ft8TransmitSignal != null) {
+                        ft8TransmitSignal.setDecoding(false);
+                    }
+                    return;
+                }
 
                 synchronized (ft8Messages) {
                     ft8Messages.addAll(messages);//添加消息到列表
+                    //删除多余的消息,FT8CN限定的可展示消息的总数量
+                    GeneralVariables.deleteArrayListMore(ft8Messages);
                 }
-                GeneralVariables.deleteArrayListMore(ft8Messages);//删除多余的消息,FT8CN限定的可展示消息的总数量
 
                 mutableFt8MessageList.postValue(ft8Messages);//触发添加消息的动作，让界面能观察到
                 mutableTimerOffset.postValue(time_sec);//本次时间偏移量
@@ -336,11 +365,25 @@ public class MainViewModel extends ViewModel {
 
 
                 getQTHRunnable.messages = messages;
-                getQTHThreadPool.execute(getQTHRunnable);//用线程池的方式查询归属地
+                // 上一次归属地查询还没结束时不再排队；它完成后会处理最新一批。
+                if (getQTHScheduled.compareAndSet(false, true)) {
+                    getQTHThreadPool.execute(getQTHRunnable);
+                }
 
                 //此变量也是告诉消息列表变化的
                 mutable_Decoded_Counter.postValue(
                         currentDecodeCount);//告知界面消息的总数量
+
+                // 等主线程把最新消息列表刷新完，再允许发射，避免列表还没显示
+                // 就开始发射、自动程序拿到的是上一轮信息。
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (ft8TransmitSignal != null) {
+                            ft8TransmitSignal.setDecoding(false);
+                        }
+                    }
+                });
 
                 if (GeneralVariables.saveSWLMessage) {
                     databaseOpr.writeMessage(messages);//把SWL消息写到数据库
@@ -398,7 +441,9 @@ public class MainViewModel extends ViewModel {
                     }
                 }
                 if (ft8TransmitSignal.isActivated()) {
-                    GeneralVariables.transmitMessages.add(message);
+                    synchronized (GeneralVariables.transmitMessages) {
+                        GeneralVariables.transmitMessages.add(message);
+                    }
                     //mutableTransmitMessages.postValue(GeneralVariables.transmitMessages);
                     mutableTransmitMessagesCount.postValue(1);
                 }
@@ -523,24 +568,26 @@ public class MainViewModel extends ViewModel {
             return;
         }
         int count = 0;
-        for (Ft8Message msg : messages) {
-            //与我的呼号有关，与关注的呼号有关
-            //if (msg.getCallsignFrom().equals(GeneralVariables.myCallsign)
-            if (GeneralVariables.checkIsMyCallsign(msg.getCallsignFrom())
-                    //|| msg.getCallsignTo().equals(GeneralVariables.myCallsign)
-                    || GeneralVariables.checkIsMyCallsign(msg.getCallsignTo())
-                    || GeneralVariables.callsignInFollow(msg.getCallsignFrom())
-                    || (GeneralVariables.callsignInFollow(msg.getCallsignTo()) && (msg.getCallsignTo() != null))
-                    || (GeneralVariables.autoFollowCQ && msg.checkIsCQ())) {//是CQ，并且允许关注CQ
-                //看不是通联成功的呼号的消息
-                msg.isQSL_Callsign = GeneralVariables.checkQSLCallsign(msg.getCallsignFrom());
-                if (!GeneralVariables.checkIsExcludeCallsign(msg.callsignFrom)) {//不在排除呼号前缀的，才加入列表
-                    count++;
-                    GeneralVariables.transmitMessages.add(msg);
+        synchronized (GeneralVariables.transmitMessages) {
+            for (Ft8Message msg : messages) {
+                //与我的呼号有关，与关注的呼号有关
+                //if (msg.getCallsignFrom().equals(GeneralVariables.myCallsign)
+                if (GeneralVariables.checkIsMyCallsign(msg.getCallsignFrom())
+                        //|| msg.getCallsignTo().equals(GeneralVariables.myCallsign)
+                        || GeneralVariables.checkIsMyCallsign(msg.getCallsignTo())
+                        || GeneralVariables.callsignInFollow(msg.getCallsignFrom())
+                        || (GeneralVariables.callsignInFollow(msg.getCallsignTo()) && (msg.getCallsignTo() != null))
+                        || (GeneralVariables.autoFollowCQ && msg.checkIsCQ())) {//是CQ，并且允许关注CQ
+                    //看不是通联成功的呼号的消息
+                    msg.isQSL_Callsign = GeneralVariables.checkQSLCallsign(msg.getCallsignFrom());
+                    if (!GeneralVariables.checkIsExcludeCallsign(msg.callsignFrom)) {//不在排除呼号前缀的，才加入列表
+                        count++;
+                        GeneralVariables.transmitMessages.add(msg);
+                    }
                 }
             }
+            GeneralVariables.deleteArrayListMore(GeneralVariables.transmitMessages);//删除多余的消息
         }
-        GeneralVariables.deleteArrayListMore(GeneralVariables.transmitMessages);//删除多余的消息
         //mutableTransmitMessages.postValue(GeneralVariables.transmitMessages);
         mutableTransmitMessagesCount.postValue(count);
     }
@@ -549,7 +596,9 @@ public class MainViewModel extends ViewModel {
      * 清除传输消息列表
      */
     public void clearTransmittingMessage() {
-        GeneralVariables.transmitMessages.clear();
+        synchronized (GeneralVariables.transmitMessages) {
+            GeneralVariables.transmitMessages.clear();
+        }
         mutableTransmitMessagesCount.postValue(0);
     }
 
@@ -575,8 +624,10 @@ public class MainViewModel extends ViewModel {
      * 清除消息列表
      */
     public void clearFt8MessageList() {
-        ft8Messages.clear();
-        mutable_Decoded_Counter.postValue(ft8Messages.size());
+        synchronized (ft8Messages) {
+            ft8Messages.clear();
+        }
+        mutable_Decoded_Counter.postValue(0);
         mutableFt8MessageList.postValue(ft8Messages);
     }
 
@@ -1072,9 +1123,13 @@ public class MainViewModel extends ViewModel {
 
         @Override
         public void run() {
-            CallsignDatabase.getMessagesLocation(
-                    GeneralVariables.callsignDatabase.getDb(), messages);
-            mainViewModel.mutableFt8MessageList.postValue(mainViewModel.ft8Messages);
+            try {
+                CallsignDatabase.getMessagesLocation(
+                        GeneralVariables.callsignDatabase.getDb(), messages);
+                mainViewModel.mutableFt8MessageList.postValue(mainViewModel.ft8Messages);
+            } finally {
+                mainViewModel.getQTHScheduled.set(false);
+            }
         }
     }
 

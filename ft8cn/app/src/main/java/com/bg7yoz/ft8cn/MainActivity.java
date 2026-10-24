@@ -42,6 +42,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.Observer;
 import androidx.navigation.NavController;
+import androidx.navigation.NavOptions;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 
@@ -210,9 +211,13 @@ public class MainActivity extends AppCompatActivity {
         binding.navView.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                //Log.e(TAG, "onNavigationItemSelected: "+item.toString() );
-                navController.navigate(item.getItemId());
-                //binding.navView.setLabelFor(item.getItemId());
+                // 底部导航只保留“起始页 + 当前页”，不能每点一次都往返回栈里叠一个页面。
+                // 否则长时间切换页面会不断保留旧 Fragment/View，最终 Java 堆 OOM。
+                NavOptions options = new NavOptions.Builder()
+                        .setLaunchSingleTop(true)
+                        .setPopUpTo(navController.getGraph().getStartDestinationId(), false)
+                        .build();
+                navController.navigate(item.getItemId(), null, options);
                 return true;
             }
         });
@@ -232,6 +237,9 @@ public class MainActivity extends AppCompatActivity {
         }
         //初始化数据
         InitData();
+
+        //debug 包测试入口：adb 启动时灌入大量消息，用于复现消息列表压力问题
+        fillTestMessagesIfRequested();
 
 
         //观察是不是flex radio
@@ -455,6 +463,51 @@ public class MainActivity extends AppCompatActivity {
 //                });
 
         floatView.initLocation();
+    }
+
+    /**
+     * 仅 debug 包使用的测试入口。
+     *
+     * <p>通过下面的命令启动，可向解码列表灌入指定数量的测试消息：</p>
+     * <pre>
+     * adb shell am force-stop com.bg7yoz.ft8cn
+     * adb shell am start -n com.bg7yoz.ft8cn/.MainActivity --ei fillMessages 3000
+     * </pre>
+     */
+    private void fillTestMessagesIfRequested() {
+        if (!BuildConfig.DEBUG) return;
+        int count = getIntent().getIntExtra("fillMessages", 0);
+        if (count <= 0) return;
+        count = Math.min(count, 3000);
+
+        long now = UtcTimer.getSystemTime();
+        long band = GeneralVariables.band > 0 ? GeneralVariables.band : 14074000L;
+        synchronized (mainViewModel.ft8Messages) {
+            mainViewModel.ft8Messages.clear();
+            for (int i = 0; i < count; i++) {
+                // i3=1 走普通消息显示格式：CQ Kxxxxx FN20
+                Ft8Message msg = new Ft8Message(1, 0, "CQ", "K" + (10000 + i), "FN20");
+                msg.utcTime = now;
+                msg.isValid = true;
+                msg.snr = -20 + (i % 31);
+                msg.time_sec = ((i % 11) - 5) * 0.1f;
+                msg.freq_hz = 300 + (i % 2400);
+                msg.band = band;
+                msg.signalFormat = FT8Common.FT8_MODE;
+                msg.maidenGrid = "FN20";
+                msg.fromWhere = "TEST";
+                msg.toWhere = "";
+                msg.isWeakSignal = (i % 7 == 0);
+                mainViewModel.ft8Messages.add(msg);
+            }
+            // 灌入超过上限的数据时，按生产逻辑保留最新的 100 条
+            GeneralVariables.deleteArrayListMore(mainViewModel.ft8Messages);
+            count = mainViewModel.ft8Messages.size();
+        }
+        mainViewModel.currentDecodeCount = count;
+        mainViewModel.mutableFt8MessageList.postValue(mainViewModel.ft8Messages);
+        mainViewModel.mutable_Decoded_Counter.postValue(count);
+        Log.i(TAG, "已灌入测试消息，保留：" + count);
     }
 
     /**

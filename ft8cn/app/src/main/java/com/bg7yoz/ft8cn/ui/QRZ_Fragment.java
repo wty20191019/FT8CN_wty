@@ -65,4 +65,16 @@ public class QRZ_Fragment extends Fragment {
         binding.qrzWebView.loadUrl(url);
         return binding.getRoot();
     }
+
+    @Override
+    public void onDestroyView() {
+        // WebView 必须显式销毁，否则反复打开 QRZ 页面会长期占用大量内存
+        if (binding != null) {
+            binding.qrzWebView.stopLoading();
+            binding.qrzWebView.loadUrl("about:blank");
+            binding.qrzWebView.destroy();
+        }
+        binding = null;
+        super.onDestroyView();
+    }
 }

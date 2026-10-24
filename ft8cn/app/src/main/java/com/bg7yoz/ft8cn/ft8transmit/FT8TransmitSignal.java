@@ -49,6 +49,8 @@ public class FT8TransmitSignal {
     public int sequential;//发射的时序
     public MutableLiveData<Integer> mutableSequential = new MutableLiveData<>();
     private boolean isTransmitting = false;
+    // 当前时隙是否还在解码。解码结果必须先进入消息列表/自动程序，再开始发射。
+    private volatile boolean decoding = false;
     public MutableLiveData<Boolean> mutableIsTransmitting = new MutableLiveData<>();//是否处于发射状态
     public MutableLiveData<String> mutableTransmittingMessage = new MutableLiveData<>();//当前消息的内容
 
@@ -135,13 +137,48 @@ public class FT8TransmitSignal {
                         ToastMessage.show(GeneralVariables.getStringFromResource(R.string.callsign_error));
                         return;
                     }
-                    doTransmit();//发射动作还是准确按时间来，延迟是音频信号的延迟
+                    // 解码可能超过发射延时；先等本时隙解码完成，
+                    // 避免用上一轮的旧消息提前发射。
+                    waitForDecodeThenTransmit();
                 }
             }
         });
 
         utcTimer.start();
 
+    }
+
+    /**
+     * 等待本时隙解码完成后再发射。最多等到时隙开始后的 2 秒，
+     * 超过则放弃本次自动发射，避免发送过期消息。
+     */
+    private void waitForDecodeThenTransmit() {
+        long start = System.currentTimeMillis();
+        // 发射定时器和解码定时器在同一时隙边界触发，先留出解码启动时间；
+        // 默认 transmitDelay=500ms，可避免发射线程先于解码线程执行。
+        long grace = Math.max(300, GeneralVariables.transmitDelay);
+        try {
+            long elapsed = System.currentTimeMillis() - start;
+            if (elapsed < grace) {
+                Thread.sleep(grace - elapsed);
+            }
+            while (decoding && activated && !isTransmitting
+                    && System.currentTimeMillis() - start < 2000) {
+                Thread.sleep(10);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        if (!activated || isTransmitting || decoding) return;
+        if (UtcTimer.getNowSequential() != sequential) return;
+        // 仍在当前时隙的发射窗口内才发射
+        if ((UtcTimer.getSystemTime() % 15000) >= 2500) return;
+        doTransmit();
+    }
+
+    public void setDecoding(boolean decoding) {
+        this.decoding = decoding;
     }
 
     /**

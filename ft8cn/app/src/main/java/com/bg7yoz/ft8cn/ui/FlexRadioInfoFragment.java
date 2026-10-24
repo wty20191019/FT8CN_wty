@@ -194,4 +194,10 @@ public class FlexRadioInfoFragment extends Fragment {
                 ,String.valueOf(connector.maxTunePower),null);
     }
 
+    @Override
+    public void onDestroyView() {
+        binding = null;
+        super.onDestroyView();
+    }
+
 }
