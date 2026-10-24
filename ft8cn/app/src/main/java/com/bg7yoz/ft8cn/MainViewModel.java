@@ -313,12 +313,21 @@ public class MainViewModel extends ViewModel {
             @Override
             public void beforeListen(long utc) {
                 mutableIsDecoding.postValue(true);
+                if (ft8TransmitSignal != null) {
+                    ft8TransmitSignal.setDecoding(true);
+                }
             }
 
             @Override
             public void afterDecode(long utc, float time_sec, int sequential
                     , ArrayList<Ft8Message> messages, boolean isDeep) {
-                if (messages.size() == 0) return;//没有解码出消息，不触发动作
+                if (messages.size() == 0) {
+                    //没有解码出消息，也要放行本时隙的发射等待
+                    if (ft8TransmitSignal != null) {
+                        ft8TransmitSignal.setDecoding(false);
+                    }
+                    return;
+                }
 
                 synchronized (ft8Messages) {
                     ft8Messages.addAll(messages);//添加消息到列表
@@ -358,6 +367,11 @@ public class MainViewModel extends ViewModel {
                 // 上一次归属地查询还没结束时不再排队；它完成后会处理最新一批。
                 if (getQTHScheduled.compareAndSet(false, true)) {
                     getQTHThreadPool.execute(getQTHRunnable);
+                }
+
+                //解码结果已经进入列表并完成自动程序解析，允许发射等待继续
+                if (ft8TransmitSignal != null) {
+                    ft8TransmitSignal.setDecoding(false);
                 }
 
                 //此变量也是告诉消息列表变化的
