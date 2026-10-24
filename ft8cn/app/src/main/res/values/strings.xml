@@ -488,6 +488,7 @@
     <string name="decode_mode_text">Decode mode</string>
     <string name="fast_mode">Fast decode</string>
     <string name="deep_mode">Deep decode</string>
+    <string name="fast_parallel_mode">Fast multi-core</string>
     <string name="wsjtx_mode">wsjtx Normal</string>
     <string name="wsjtx_deep_mode">wsjtx Deep</string>
     <string name="wsjtx_parallel_mode">wsjtx Normal multi-core</string>

@@ -24,6 +24,11 @@ import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FT8SignalListener {
@@ -144,8 +149,12 @@ public class FT8SignalListener {
                 int mode = GeneralVariables.decodeMode;
                 ArrayList<Ft8Message> decoded = null;
 
-                //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
-                if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
+                //快速多核：原快速解码器按频谱分段并行
+                if (GeneralVariables.isFastParallelMode()) {
+                    decoded = decodeByFastParallel(utc, voiceData, 4);
+                    publishWsjtxMessages(utc, decoded, false, time);
+                } else if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
+                    //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
                     boolean deep = GeneralVariables.isWsjtxDeepMode();
                     if (GeneralVariables.isWsjtxParallelMode()) {
                         decoded = decodeByWsjtxParallel(utc, voiceData, deep);
@@ -305,13 +314,75 @@ public class FT8SignalListener {
     }
 
 
+    /**
+     * 原快速解码器的频谱分段并行实验。
+     *
+     * <p>每段先做 FIR 带通，再使用独立 native decoder 并行执行一次快速解码。
+     * 段间保留重叠，最后按报文去重合并。滤波器保留绝对频率，因此不需要
+     * 对解码结果的 freq_hz 做频移修正。</p>
+     */
+    public ArrayList<Ft8Message> decodeByFastParallel(long utc, float[] voiceData,
+                                                      int bandCount) {
+        long start = System.currentTimeMillis();
+        final List<FastBandSplitter.Band> bands = FastBandSplitter.plan(bandCount);
+        if (bands.size() <= 1) {
+            return decodeByLegacy(utc, voiceData, false, System.currentTimeMillis());
+        }
+
+        ExecutorService pool = Executors.newFixedThreadPool(bands.size(), r -> {
+            Thread t = new Thread(r, "ft8-fast-band");
+            t.setDaemon(true);
+            return t;
+        });
+        ArrayList<Ft8Message> all = new ArrayList<>();
+        try {
+            List<Future<ArrayList<Ft8Message>>> futures = new ArrayList<>(bands.size());
+            for (final FastBandSplitter.Band band : bands) {
+                futures.add(pool.submit(() -> {
+                    band.audio = FastBandSplitter.bandpass(voiceData,
+                            FT8Common.SAMPLE_RATE, band.lowHz, band.highHz);
+                    long decoder = InitDecoder(utc, FT8Common.SAMPLE_RATE,
+                            band.audio.length, true);
+                    try {
+                        DecoderMonitorPressFloat(band.audio, decoder);
+                        return runDecode(decoder, utc, false, new A91List());
+                    } finally {
+                        DeleteDecoder(decoder);
+                    }
+                }));
+            }
+            for (Future<ArrayList<Ft8Message>> future : futures) {
+                try {
+                    for (Ft8Message msg : future.get()) {
+                        if (!checkMessageSame(all, msg)) all.add(msg);
+                    }
+                } catch (ExecutionException e) {
+                    Log.e(TAG, "快速分段解码失败：" + e.getCause(), e.getCause());
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            pool.shutdownNow();
+        }
+        timeSec = System.currentTimeMillis() - start;
+        Log.d(TAG, String.format("快速分段解码完成：%d 段，%d 条",
+                bands.size(), all.size()));
+        return all;
+    }
+
     private ArrayList<Ft8Message> runDecode(long ft8Decoder, long utc, boolean isDeep) {
+        return runDecode(ft8Decoder, utc, isDeep, a91List);
+    }
+
+    private ArrayList<Ft8Message> runDecode(long ft8Decoder, long utc, boolean isDeep,
+                                            A91List decoderA91List) {
         ArrayList<Ft8Message> ft8Messages = new ArrayList<>();
         Ft8Message ft8Message = new Ft8Message(FT8Common.FT8_MODE);
 
         ft8Message.utcTime = utc;
         ft8Message.band = GeneralVariables.band;
-        a91List.clear();
+        decoderA91List.clear();
 
         setDecodeMode(ft8Decoder, isDeep);//设置迭代次数,isDeep==true，迭代次数增加
 
@@ -325,7 +396,7 @@ public class FT8SignalListener {
                     if (ft8Message.isValid) {
                         Ft8Message msg = new Ft8Message(ft8Message);//此处使用msg，是因为有的哈希呼号会把<...>替换掉
                         byte[] a91 = DecoderGetA91(ft8Decoder);
-                        a91List.add(a91, ft8Message.freq_hz, ft8Message.time_sec);
+                        decoderA91List.add(a91, ft8Message.freq_hz, ft8Message.time_sec);
 
                         if (checkMessageSame(ft8Messages, msg)) {
                             continue;

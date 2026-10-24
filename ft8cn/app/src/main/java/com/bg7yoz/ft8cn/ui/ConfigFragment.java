@@ -1114,10 +1114,11 @@ public class ConfigFragment extends Fragment {
 
 
     private void setDecodeMode() {
-        // 只保留三档：快速、深度、wsjtx普通多核。
+        // 快速、深度、快速多核、wsjtx普通多核。
         // 旧配置里的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核。
         if (GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_FAST
                 && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_DEEP
+                && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_FAST_PARALLEL
                 && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
             GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
         }
@@ -1126,6 +1127,9 @@ public class ConfigFragment extends Fragment {
         switch (GeneralVariables.decodeMode) {
             case GeneralVariables.DECODE_MODE_DEEP:
                 binding.deepDecodeRadioButton.setChecked(true);
+                break;
+            case GeneralVariables.DECODE_MODE_FAST_PARALLEL:
+                binding.fastParallelDecodeRadioButton.setChecked(true);
                 break;
             case GeneralVariables.DECODE_MODE_WSJTX_PARALLEL:
                 binding.wsjtxParallelDecodeRadioButton.setChecked(true);
@@ -1142,6 +1146,8 @@ public class ConfigFragment extends Fragment {
                 int buttonId = view.getId();
                 if (buttonId == binding.deepDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_DEEP;
+                } else if (buttonId == binding.fastParallelDecodeRadioButton.getId()) {
+                    GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_FAST_PARALLEL;
                 } else if (buttonId == binding.wsjtxParallelDecodeRadioButton.getId()) {
                     GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
                 } else {
@@ -1156,6 +1162,7 @@ public class ConfigFragment extends Fragment {
 
         binding.fastDecodeRadioButton.setOnClickListener(listener);
         binding.deepDecodeRadioButton.setOnClickListener(listener);
+        binding.fastParallelDecodeRadioButton.setOnClickListener(listener);
         binding.wsjtxParallelDecodeRadioButton.setOnClickListener(listener);
 
     }

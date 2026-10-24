@@ -52,6 +52,7 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
     private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
     private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
+    private static final String MODE_FAST_PARALLEL = "fast_parallel";
     private static final String MODE_BAND = "band";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
@@ -64,6 +65,7 @@ public class BenchmarkActivity extends Activity {
     private String fileFilter;
     private float bandLo;
     private float bandHi;
+    private int fastBandCount = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +92,7 @@ public class BenchmarkActivity extends Activity {
 
         String benchDir = dir;
         final int bands = getIntent().getIntExtra("bands", 0);
+        fastBandCount = bands > 0 ? bands : 4;
         WsjtxBandDecoder.setBandCountForTest(bands);
         WsjtxBandDecoder.setProfileForTest(getIntent().getIntExtra("profile", -1));
         new Thread(new Runnable() {
@@ -122,6 +125,7 @@ public class BenchmarkActivity extends Activity {
                     || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
                     || s.equals(MODE_WSJTX_PARALLEL)
                     || s.equals(MODE_WSJTX_DEEP_PARALLEL)
+                    || s.equals(MODE_FAST_PARALLEL)
                     || s.equals(MODE_BAND)) {
                 modes.add(s);
             }
@@ -298,6 +302,8 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByLegacy(BENCH_UTC, audio, false, start);
             case MODE_DEEP:
                 return listener.decodeByLegacy(BENCH_UTC, audio, true, start);
+            case MODE_FAST_PARALLEL:
+                return listener.decodeByFastParallel(BENCH_UTC, audio, fastBandCount);
             case MODE_WSJTX:
                 return listener.decodeByWsjtx(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP:
