@@ -30,6 +30,7 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.media.AudioManager;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.lifecycle.MutableLiveData;
@@ -369,14 +370,20 @@ public class MainViewModel extends ViewModel {
                     getQTHThreadPool.execute(getQTHRunnable);
                 }
 
-                //解码结果已经进入列表并完成自动程序解析，允许发射等待继续
-                if (ft8TransmitSignal != null) {
-                    ft8TransmitSignal.setDecoding(false);
-                }
-
                 //此变量也是告诉消息列表变化的
                 mutable_Decoded_Counter.postValue(
                         currentDecodeCount);//告知界面消息的总数量
+
+                // 等主线程把最新消息列表刷新完，再允许发射，避免列表还没显示
+                // 就开始发射、自动程序拿到的是上一轮信息。
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (ft8TransmitSignal != null) {
+                            ft8TransmitSignal.setDecoding(false);
+                        }
+                    }
+                });
 
                 if (GeneralVariables.saveSWLMessage) {
                     databaseOpr.writeMessage(messages);//把SWL消息写到数据库
