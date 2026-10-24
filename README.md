@@ -1,10 +1,8 @@
-# FT8CN_wty
+# FT8CN_wty（BG7ZJW改版）
 
 Developed by BG7YOZ and hosted by N0BOY
 
 Run FT8 natively on Android
-
-Check [Releases](https://github.com/N0BOY/FT8CN/releases) to download the latest apk file.
 
 ## 解码方案评估结论
 
@@ -16,7 +14,7 @@ Check [Releases](https://github.com/N0BOY/FT8CN/releases) to download the latest
 
 | 方案                         | 召回率 | 平均耗时 | 线程 | 单位 CPU 时间召回率 |
 | ---------------------------- | -----: | -------: | ---: | ------------------: |
-| FT8CN 原快速解码（63e9d229） |  72.4% |  64.2 ms |    1 |      **1.13** |
+| FT8CN 原快速解码（63e9d229） |  72.4% |  64.2 ms |    1 |            **1.13** |
 | wsjtx 2 段 + 关闭 OSD        |  64.1% |  45.9 ms |    2 |                0.70 |
 | wsjtx 3 段 + 关闭 OSD        |  66.2% |  46.7 ms |    3 |                0.47 |
 | wsjtx 6 段 + 单遍 + OSD      |  72.3% |  83.8 ms |    6 |                0.14 |
@@ -28,9 +26,9 @@ Check [Releases](https://github.com/N0BOY/FT8CN/releases) to download the latest
 
 因此 wsjtx 解码挡位已从主线移除，仅以 tag 保留研究过程（`X_APP_wsjtx_1023`、`X_wsjtx-fast-sic-70`、`wsjtx-research-branch`）。主线只保留与解码无关的稳定性维护：长跑线程防重入、原生解码器释放、页面栈与视图泄漏修复、消息上限、发射前等待解码。
 
-### 结论二：单位解码时间的召回率，FT8CN 是我见过最优秀的
+# 结论二：**单位解码时间的召回率，FT8CN 是我见过最优秀的**
 
-以“召回率 ÷ 平均解码时间”衡量（单线程，单位 %/ms）：
+以“召回率 ÷ 平均解码时 间”衡量（单线程，单位 %/ms）：
 
 ```text
 FT8CN 原快速解码：72.4% / 64.2 ms = 1.13
@@ -54,6 +52,10 @@ wsjtx 最佳分段配置：66.2% / 46.7 ms / 3 线程 = 0.47
 - **移除“精简消息模式”**：删除对应的列表分支、布局 `call_list_holder_simple_item.xml` 和配置项，只保留一种列表样式，避免切换模式时崩溃。
 - **消息列表上限 100 条**：超出后删除最旧的消息，长时间守听不会无限占用内存。
 - **底部导航不再无限叠栈**：任意时刻只保留“起始页 + 当前页”，返回行为符合预期，同时避免重复创建 Fragment。
+
+---
+
+# 下面是原有的
 
 ```
 免责声明：
@@ -116,3 +118,4 @@ BG7YOZ
    UB6LUM，帮助解决某型号电台的操作模式设置
    BG5VLI，贡献向Cloudlog和QRZ自动上传日志的代码
 ```
+
