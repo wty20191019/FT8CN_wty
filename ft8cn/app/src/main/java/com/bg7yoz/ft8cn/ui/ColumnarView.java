@@ -121,6 +121,9 @@ public class ColumnarView extends View {
         setClickable(true);
         super.onSizeChanged(w, h, oldw, oldh);
 
+        if (lastBitMap != null && !lastBitMap.isRecycled()) {
+            lastBitMap.recycle();
+        }
         lastBitMap= Bitmap.createBitmap(w,h, ARGB_8888);
         _canvas=new Canvas(lastBitMap);
         LinearGradient linearGradient=new LinearGradient(0f, 0f, 0f, getHeight(),
@@ -137,6 +140,7 @@ public class ColumnarView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (lastBitMap == null || lastBitMap.isRecycled() || _canvas == null) return;
         _canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
         for (int i = 0; i < newData.size(); i++) {
             _canvas.drawRect(newData.get(i), paint);
@@ -154,6 +158,14 @@ public class ColumnarView extends View {
         }
         invalidate();
     }
+    public void releaseBitmap() {
+        if (lastBitMap != null && !lastBitMap.isRecycled()) {
+            lastBitMap.recycle();
+        }
+        lastBitMap = null;
+        _canvas = null;
+    }
+
     public void setTouch_x(int touch_x) {
         this.touch_x = touch_x;
     }

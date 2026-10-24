@@ -401,6 +401,7 @@ public class ConfigFragment extends Fragment {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
+                if (binding == null) return;
                 setScrollImageVisible();
             }
         }, 1000);
@@ -706,6 +707,7 @@ public class ConfigFragment extends Fragment {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
+                if (binding == null) return;
                 binding.pttDelayOffsetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override
                     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
@@ -1576,6 +1578,7 @@ public class ConfigFragment extends Fragment {
                         new Handler(Looper.getMainLooper()).post(new Runnable() {
                             @Override
                             public void run() {
+                                if (binding == null) return;
                                 if (result) {
                                     binding.testCloudlogButton.setText(getResources().getString(R.string.pass));
                                 } else {
@@ -1585,6 +1588,7 @@ public class ConfigFragment extends Fragment {
                                 new Handler().postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (binding == null) return;
                                         binding.testCloudlogButton.setEnabled(true);
                                         binding.testCloudlogButton.setText(getResources().getString(R.string.test));
                                     }
@@ -1607,6 +1611,7 @@ public class ConfigFragment extends Fragment {
                         new Handler(Looper.getMainLooper()).post(new Runnable() {
                             @Override
                             public void run() {
+                                if (binding == null) return;
                                 if (result) {
                                     binding.testQrzButton.setText(getResources().getString(R.string.pass));
                                 } else {
@@ -1616,6 +1621,7 @@ public class ConfigFragment extends Fragment {
                                 new Handler().postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
+                                        if (binding == null) return;
                                         binding.testQrzButton.setEnabled(true);
                                         binding.testQrzButton.setText(getResources().getString(R.string.test));
                                     }
@@ -1696,6 +1702,12 @@ public class ConfigFragment extends Fragment {
     /**
      * 设置界面的上下滚动的图标
      */
+    @Override
+    public void onDestroyView() {
+        binding = null;
+        super.onDestroyView();
+    }
+
     private void setScrollImageVisible() {
 
         if (binding.scrollView3.getScrollY() == 0) {

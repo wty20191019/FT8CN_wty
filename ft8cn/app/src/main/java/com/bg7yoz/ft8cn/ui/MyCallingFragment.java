@@ -514,4 +514,18 @@ public class MyCallingFragment extends Fragment {
             }
         }).attachToRecyclerView(binding.transmitRecycleView);
     }
+
+    @Override
+    public void onDestroyView() {
+        // Fragment 可能保留在返回栈里；必须主动断开旧 View 树和 Adapter，
+        // 否则反复切换页面会持续泄漏 RecyclerView、Context 和列表项 View。
+        if (transmitRecycleView != null) {
+            transmitRecycleView.setAdapter(null);
+        }
+        transmitRecycleView = null;
+        transmitCallListAdapter = null;
+        functionOrderSpinnerAdapter = null;
+        binding = null;
+        super.onDestroyView();
+    }
 }
