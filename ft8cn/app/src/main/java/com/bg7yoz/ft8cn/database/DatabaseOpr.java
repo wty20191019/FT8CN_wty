@@ -546,7 +546,7 @@ public class DatabaseOpr extends SQLiteOpenHelper {
      * @param grid     网格
      */
     public void addCallsignQTH(String callsign, String grid) {
-        if (grid.trim().length() < 4) return;
+        if (grid == null || grid.trim().length() < 4) return;
         new AddCallsignQTH(db).execute(callsign, grid);
         Log.d(TAG, String.format("addCallsignQTH: callsign:%s,grid:%s", callsign, grid));
     }
@@ -2057,6 +2057,10 @@ public class DatabaseOpr extends SQLiteOpenHelper {
         @Override
         protected Void doInBackground(Void... voids) {
 
+            //新版解码挡位配置（0=快速,1=多次,2=wsjtx普通,3=wsjtx深度）。
+            //先单独查一次，用来判断旧版 deepMode 是否还需要兼容。
+            String decodeModeValue = getConfigByKey("decodeMode");
+
             String querySQL = "select keyName,Value from config ";
             Cursor cursor = db.rawQuery(querySQL, null);
             while (cursor.moveToNext()) {
@@ -2179,8 +2183,27 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                 if (name.equalsIgnoreCase("audioRate")) {//输出音频是否32位浮点
                     GeneralVariables.audioSampleRate =Integer.parseInt( result);
                 }
-                if (name.equalsIgnoreCase("deepMode")) {//是不是深度解码模式
-                    GeneralVariables.deepDecodeMode =result.equals("1");
+                if (name.equalsIgnoreCase("deepMode")) {//旧版深度解码开关，仅在未配置decodeMode时兼容读取
+                    if (decodeModeValue.equals("")) {
+                        GeneralVariables.decodeMode = result.equals("1")
+                                ? GeneralVariables.DECODE_MODE_DEEP
+                                : GeneralVariables.DECODE_MODE_FAST;
+                    }
+                }
+                if (name.equalsIgnoreCase("decodeMode")) {//解码挡位
+                    try {
+                        int mode = Integer.parseInt(result);
+                        if (mode == GeneralVariables.DECODE_MODE_FAST
+                                || mode == GeneralVariables.DECODE_MODE_DEEP
+                                || mode == GeneralVariables.DECODE_MODE_WSJTX_PARALLEL) {
+                            GeneralVariables.decodeMode = mode;
+                        } else if (mode >= 2) {
+                            // 旧版的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核
+                            GeneralVariables.decodeMode = GeneralVariables.DECODE_MODE_WSJTX_PARALLEL;
+                        }
+                    } catch (NumberFormatException e) {
+                        Log.e(TAG, "doInBackground: decodeMode " + e.getMessage());
+                    }
                 }
                 if (name.equalsIgnoreCase("audioInputSource")) {//录音音源
                     GeneralVariables.audioInputSource = result.equals("")
