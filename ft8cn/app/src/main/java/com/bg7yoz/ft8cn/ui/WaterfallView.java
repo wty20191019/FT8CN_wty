@@ -210,23 +210,16 @@ public class WaterfallView extends View {
     }
 
     /**
-     * 经典配色 + 自动动态范围：先把当前帧 p2~p99 拉伸到 0~255，再套用原来的颜色公式。
+     * 多段渐变配色 + 自动动态范围：先把当前帧 p2~p99 拉伸到 0~255，再查 8 段渐变表。
      */
-    private void fillClassicColors(int[] colors, int[] data) {
+    private void fillGradientColors(int[] colors, int[] data) {
         updateDynamicRange(data);
         float scale = 255f / (dynHigh - dynLow);
         for (int i = 0; i < data.length; i++) {
             int v = (int) ((data[i] - dynLow) * scale);
             if (v < 0) v = 0;
             if (v > 255) v = 255;
-
-            if (v < 128) {//低于一半的音量，用蓝色0~256
-                colors[i] = 0xff000000 | (v << 1);
-            } else if (v < 192) {
-                colors[i] = 0xff0000ff | ((v - 127) << 10);//放大4倍
-            } else {
-                colors[i] = 0xff00ffff | ((v - 127) << 18);//放大4倍
-            }
+            colors[i] = WaterfallPalette.COLORS[v];
         }
     }
 
@@ -305,8 +298,8 @@ public class WaterfallView extends View {
         }
         lastSequential = sequential;
 
-        //色块分布：经典配色 + 自动动态范围
-        fillClassicColors(colors, data);
+        //色块分布：8 段渐变 + 自动动态范围
+        fillGradientColors(colors, data);
         LinearGradient linearGradient = new LinearGradient(0, 0, getWidth() * 2, 0, colors
                 , null, Shader.TileMode.CLAMP);
         //Paint linearPaint = new Paint();
