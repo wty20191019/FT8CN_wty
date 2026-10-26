@@ -41,14 +41,14 @@ public class GeneralVariables {
     public static boolean enableQRZ = false;//是否启用qrz自动同步
 
     //解码挡位：0=快速解码，1=多次解码，2=wsjtx普通，3=wsjtx深度，
-    //4=wsjtx普通多核，5=wsjtx深度多核，6=ft8_w精确（precise）
+    //4=wsjtx普通多核，5=wsjtx深度多核，6=ft8_w2
     public static final int DECODE_MODE_FAST = 0;//快速解码（原FT8CN解码器，一次解码）
     public static final int DECODE_MODE_DEEP = 1;//多次解码（原FT8CN解码器，多轮迭代）
     public static final int DECODE_MODE_WSJTX = 2;//wsjtx普通（mfsk-core，默认参数）
     public static final int DECODE_MODE_WSJTX_DEEP = 3;//wsjtx深度（mfsk-core，BP_ALL_OSD + DEEP门限）
     public static final int DECODE_MODE_WSJTX_PARALLEL = 4;//wsjtx普通多核（频谱分段并行）
     public static final int DECODE_MODE_WSJTX_DEEP_PARALLEL = 5;//wsjtx深度多核（频谱分段并行）
-    public static final int DECODE_MODE_FT8W = 6;//ft8_w精确（libft8.so，precise档）
+    public static final int DECODE_MODE_FT8W = 6;//ft8_w2（libft8.so，precise档）
     public static int decodeMode = DECODE_MODE_FAST;//当前解码挡位
 
     public static boolean audioOutput32Bit = true;//音频输出类型true=float,false=int16
@@ -541,7 +541,7 @@ public class GeneralVariables {
     /**
      * 当前挡位是不是 ft8_w（libft8.so）解码。
      *
-     * @return true 表示使用 ft8_w precise 档
+     * @return true 表示使用 ft8_w2 档
      */
     public static boolean isFt8wDecodeMode() {
         return decodeMode == DECODE_MODE_FT8W;

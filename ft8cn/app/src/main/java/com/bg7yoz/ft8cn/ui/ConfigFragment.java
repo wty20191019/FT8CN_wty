@@ -1114,7 +1114,7 @@ public class ConfigFragment extends Fragment {
 
 
     private void setDecodeMode() {
-        // 保留四档：快速、深度、wsjtx普通多核、ft8_w精确。
+        // 保留四档：快速、深度、wsjtx普通多核、ft8_w2。
         // 旧配置里的单实例 wsjtx / 深度多核 / 混合挡位统一迁移到 wsjtx普通多核。
         if (GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_FAST
                 && GeneralVariables.decodeMode != GeneralVariables.DECODE_MODE_DEEP

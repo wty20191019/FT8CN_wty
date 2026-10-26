@@ -484,7 +484,7 @@
     <string name="wsjtx_deep_mode">wsjtx深度</string>
     <string name="wsjtx_parallel_mode">wsjtx普通多核</string>
     <string name="wsjtx_deep_parallel_mode">wsjtx深度多核</string>
-    <string name="ft8w_mode">ft8_w精確</string>
+    <string name="ft8w_mode">ft8_w2</string>
     <string name="export_null">請在與本機相同的局域網下，用其它設備的網頁瀏覽器從後台導出。\n在瀏覽器的地址欄中輸入如下內容：\n無法獲取合適的IP地址，請連接到一個有效的Wifi。</string>
     <string name="deep_mode_help">decode_help.txt</string>
     <string name="null_task_html">任務不存在！</string>
