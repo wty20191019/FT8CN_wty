@@ -4,18 +4,18 @@ package com.bg7yoz.ft8cn.ui;
  * 瀑布图配色渐变表。
  *
  * <p>用 8 个色标线性插值成 256 项，替代原来的三段式公式。
- * 色带走向：黑 → 深蓝 → 蓝 → 青 → 绿 → 黄 → 橙红 → 白。</p>
+ * 色带走向保持原来的 黑 → 深蓝 → 蓝 → 青，只是分段更多、过渡更平顺。</p>
  */
 public final class WaterfallPalette {
     private static final int[] STOPS = {
             0x000000, // 黑
-            0x000080, // 深蓝
-            0x0040ff, // 蓝
-            0x00dcff, // 青
-            0x00ff50, // 绿
-            0xe6ff00, // 黄
-            0xff3c00, // 橙红
-            0xffffff, // 白
+            0x000030, // 极深蓝
+            0x00006e, // 深蓝
+            0x0000b4, // 蓝
+            0x0014f0, // 亮蓝
+            0x005aff, // 蓝青
+            0x00aaff, // 青蓝
+            0x00ffff, // 青
     };
 
     /** 0（低强度）到 255（高强度）的 ARGB 颜色表。 */
