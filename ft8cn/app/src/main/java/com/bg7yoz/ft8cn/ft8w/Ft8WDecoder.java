@@ -113,6 +113,12 @@ public final class Ft8WDecoder {
     }
 
     /**
+     * ft8_w 返回的 dt 相对音频缓冲起点，实测比 FT8CN 的时隙偏移恒定多约 0.66 s
+     * （953 条匹配报文，σ=0.04）。这里统一归一到时隙口径。
+     */
+    private static final float DT_BIAS_SEC = 0.66f;
+
+    /**
      * 结果串格式：
      * text|snr|dt|freq|score|ldpc_errors|pass|ap_type|crc|i3|n3|call_to|call_de|extra|grid
      */
@@ -128,7 +134,7 @@ public final class Ft8WDecoder {
             Row r = new Row();
             r.text = p[0];
             r.snr = Float.parseFloat(p[1]);
-            r.dt = Float.parseFloat(p[2]);
+            r.dt = Float.parseFloat(p[2]) - DT_BIAS_SEC;
             r.freq = Float.parseFloat(p[3]);
             r.score = Integer.parseInt(p[4]);
             r.ldpcErrors = Integer.parseInt(p[5]);
