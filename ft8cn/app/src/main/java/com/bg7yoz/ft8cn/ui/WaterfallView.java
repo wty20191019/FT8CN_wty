@@ -30,6 +30,7 @@ import com.bg7yoz.ft8cn.GeneralVariables;
 import com.bg7yoz.ft8cn.timer.UtcTimer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -58,6 +59,12 @@ public class WaterfallView extends View {
     private int touch_x = -1;
     private int freq_hz = -1;
     private boolean drawMessage = false;//是否画消息内容
+
+    //自动动态范围：每帧强度直方图与平滑后的范围
+    private final int[] dynHist = new int[256];
+    private float dynLow = 0f;
+    private float dynHigh = 255f;
+    private boolean dynReady = false;
 
     public WaterfallView(Context context) {
         super(context);
@@ -202,8 +209,64 @@ public class WaterfallView extends View {
         invalidate();
     }
 
-    public void setWaveData(int[] data, int sequential, List<Ft8Message> msgs) {
-        if (drawMessage&& msgs!=null){//把需要画的消息复制出来防止多线程访问冲突
+    /**
+     * 多段渐变配色 + 自动动态范围：先把当前帧 p2~p99 拉伸到 0~255，再查 8 段渐变表。
+     */
+    private void fillGradientColors(int[] colors, int[] data) {
+        updateDynamicRange(data);
+        float scale = 255f / (dynHigh - dynLow);
+        for (int i = 0; i < data.length; i++) {
+            int v = (int) ((data[i] - dynLow) * scale);
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            colors[i] = WaterfallPalette.COLORS[v];
+        }
+    }
+
+    /**
+     * 按当前帧的 p2~p99 更新动态范围，并做时间平滑，避免画面闪烁。
+     */
+    private void updateDynamicRange(int[] data) {
+        Arrays.fill(dynHist, 0);
+        for (int i = 0; i < data.length; i++) {
+            dynHist[data[i] & 0xff]++;
+        }
+        float p2 = percentile(0.02f, data.length);
+        float p99 = percentile(0.99f, data.length);
+
+        if (!dynReady) {
+            dynLow = p2;
+            dynHigh = p99;
+            dynReady = true;
+        } else {
+            dynLow += (p2 - dynLow) * 0.30f;
+            dynHigh += (p99 - dynHigh) * 0.30f;
+        }
+
+        //范围太小会把噪声放大成雪花，强制至少 12 级
+        if (dynHigh - dynLow < 12f) {
+            float center = (dynLow + dynHigh) * 0.5f;
+            dynLow = center - 6f;
+            dynHigh = center + 6f;
+        }
+        if (dynLow < 0f) dynLow = 0f;
+        if (dynHigh > 255f) dynHigh = 255f;
+    }
+
+    /**
+     * 从当前帧直方图取分位值。
+     */
+    private float percentile(float p, int total) {
+        int target = (int) (total * p);
+        int cum = 0;
+        for (int v = 0; v < 256; v++) {
+            cum += dynHist[v];
+            if (cum >= target) return v;
+        }
+        return 255f;
+    }
+
+    public void setWaveData(int[] data, int sequential, List<Ft8Message> msgs) {        if (drawMessage&& msgs!=null){//把需要画的消息复制出来防止多线程访问冲突
             messages=new ArrayList<>(msgs);
         }else {
             messages.clear();//当设定不标记消息时，要清空原来的消息
@@ -235,19 +298,8 @@ public class WaterfallView extends View {
         }
         lastSequential = sequential;
 
-        //色块分布
-        for (int i = 0; i < data.length; i++) {
-
-
-            if (data[i] < 128) {//低于一半的音量，用蓝色0~256
-                colors[i] = 0xff000000 | (data[i] << 1);
-            } else if (data[i] < 192) {
-                colors[i] = 0xff0000ff | (((data[i] - 127)) << 10);//放大4倍
-//                colors[i] = 0xff000000 | (data[i] * 2 * 256 + 255);
-            } else {
-                colors[i] = 0xff00ffff | (((data[i] - 127)) << 18);//放大4倍
-            }
-        }
+        //色块分布：8 段渐变 + 自动动态范围
+        fillGradientColors(colors, data);
         LinearGradient linearGradient = new LinearGradient(0, 0, getWidth() * 2, 0, colors
                 , null, Shader.TileMode.CLAMP);
         //Paint linearPaint = new Paint();
