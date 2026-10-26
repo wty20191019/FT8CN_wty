@@ -52,6 +52,7 @@ public class BenchmarkActivity extends Activity {
     private static final String MODE_WSJTX_DEEP = "wsjtx_deep";
     private static final String MODE_WSJTX_PARALLEL = "wsjtx_parallel";
     private static final String MODE_WSJTX_DEEP_PARALLEL = "wsjtx_deep_parallel";
+    private static final String MODE_FT8W = "ft8w";
     private static final String MODE_BAND = "band";
 
     //固定一个15秒对齐的UTC，保证每次基准输入一致
@@ -114,6 +115,7 @@ public class BenchmarkActivity extends Activity {
             modes.add(MODE_WSJTX_DEEP);
             modes.add(MODE_WSJTX_PARALLEL);
             modes.add(MODE_WSJTX_DEEP_PARALLEL);
+            modes.add(MODE_FT8W);
             return modes;
         }
         for (String m : modesArg.split(",")) {
@@ -122,6 +124,7 @@ public class BenchmarkActivity extends Activity {
                     || s.equals(MODE_WSJTX) || s.equals(MODE_WSJTX_DEEP)
                     || s.equals(MODE_WSJTX_PARALLEL)
                     || s.equals(MODE_WSJTX_DEEP_PARALLEL)
+                    || s.equals(MODE_FT8W)
                     || s.equals(MODE_BAND)) {
                 modes.add(s);
             }
@@ -306,6 +309,8 @@ public class BenchmarkActivity extends Activity {
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, false);
             case MODE_WSJTX_DEEP_PARALLEL:
                 return listener.decodeByWsjtxParallel(BENCH_UTC, audio, true);
+            case MODE_FT8W:
+                return listener.decodeByFt8w(BENCH_UTC, audio);
             case MODE_BAND:
                 List<Ft8Message> band = new ArrayList<>();
                 WsjtxDecoder.Row[] rows = WsjtxDecoder.decodeOnce(
