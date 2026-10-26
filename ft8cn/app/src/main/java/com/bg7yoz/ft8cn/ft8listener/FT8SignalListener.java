@@ -20,6 +20,7 @@ import com.bg7yoz.ft8cn.timer.UtcTimer;
 import com.bg7yoz.ft8cn.wave.OnGetVoiceDataDone;
 import com.bg7yoz.ft8cn.wave.WaveFileReader;
 import com.bg7yoz.ft8cn.wave.WaveFileWriter;
+import com.bg7yoz.ft8cn.ft8w.Ft8WDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxBandDecoder;
 import com.bg7yoz.ft8cn.wsjtx.WsjtxDecoder;
 
@@ -44,6 +45,8 @@ public class FT8SignalListener {
 
     //wsjtx解码库是否可用。armeabi-v7a/x86没有对应的so，第一次失败后不再尝试
     private volatile boolean wsjtxAvailable = true;
+    //ft8_w（libft8.so）是否可用。缺少对应ABI的so时回退
+    private volatile boolean ft8wAvailable = true;
     // 防止上一时隙解码尚未结束时又启动一轮，长跑时避免线程堆积
     private final AtomicBoolean decoding = new AtomicBoolean(false);
     //频谱分段并行解码器，首次使用 wsjtx 多核挡位时创建
@@ -144,6 +147,17 @@ public class FT8SignalListener {
                 int mode = GeneralVariables.decodeMode;
                 ArrayList<Ft8Message> decoded = null;
 
+                //ft8_w挡位：使用libft8.so（precise档）解码
+                if (GeneralVariables.isFt8wDecodeMode() && ft8wAvailable) {
+                    decoded = decodeByFt8w(utc, voiceData);
+                    if (decoded == null) {
+                        //当前设备ABI没有对应so，后续直接回退
+                        ft8wAvailable = false;
+                    } else {
+                        publishFt8wMessages(utc, decoded, time);
+                    }
+                }
+
                 //wsjtx挡位：使用mfsk-core（WSJT-X算法）解码
                 if (GeneralVariables.isWsjtxDecodeMode() && wsjtxAvailable) {
                     boolean deep = GeneralVariables.isWsjtxDeepMode();
@@ -197,6 +211,36 @@ public class FT8SignalListener {
             Log.e(TAG, "wsjtx解码不可用，回退到原解码器：" + e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * 使用 ft8_w（libft8.so，precise 档）解码一个时隙。
+     *
+     * @param utc       当前时隙的UTC时间
+     * @param voiceData 12kHz、float音频
+     * @return 消息列表；返回null表示库不可用或出错，需要回退
+     */
+    ArrayList<Ft8Message> decodeByFt8w(long utc, float[] voiceData) {
+        try {
+            Ft8WDecoder.Row[] rows = Ft8WDecoder.decodeOnce(
+                    voiceData, FT8Common.SAMPLE_RATE);
+            return toFt8Messages(rows, utc);
+        } catch (Throwable e) {
+            //UnsatisfiedLinkError、ExceptionInInitializerError等都从这里回退
+            Log.e(TAG, "ft8_w解码不可用，回退到原解码器：" + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 更新耗时并回调 ft8_w 解码结果。回调异常只记录日志，不影响解码流程。
+     */
+    private void publishFt8wMessages(long utc, ArrayList<Ft8Message> msgs,
+                                     long startTime) {
+        timeSec = System.currentTimeMillis() - startTime;
+        decodeTimeSec.postValue(timeSec);
+        safeAfterDecode(utc, msgs, msgs, false);
+        Log.d(TAG, String.format("ft8_w解码完成，共%d条", msgs.size()));
     }
 
     /**
@@ -412,6 +456,85 @@ public class FT8SignalListener {
         // 列表显示始终使用 mfsk-core 的原始可读报文
         msg.displayText = text;
         return msg;
+    }
+
+    /**
+     * 把 ft8_w 的解码行转换成 Ft8Message 列表。
+     *
+     * @param rows 解码行
+     * @param utc  当前时隙的UTC时间
+     * @return Ft8Message列表
+     */
+    private ArrayList<Ft8Message> toFt8Messages(Ft8WDecoder.Row[] rows, long utc) {
+        ArrayList<Ft8Message> out = new ArrayList<>();
+        if (rows == null) return out;
+
+        for (Ft8WDecoder.Row row : rows) {
+            Ft8Message msg = toFt8Message(row, utc);
+            //与原来的解码器保持一致：相同报文只保留一条
+            if (msg != null && !checkMessageSame(out, msg)) out.add(msg);
+        }
+        return out;
+    }
+
+    /**
+     * 把一条 ft8_w 解码行转换成 Ft8Message。
+     *
+     * @param row 解码行
+     * @param utc 当前时隙的UTC时间
+     * @return Ft8Message，无法转换时返回null
+     */
+    private Ft8Message toFt8Message(Ft8WDecoder.Row row, long utc) {
+        if (row == null) return null;
+
+        String text = row.text == null ? "" : row.text.trim();
+        if (text.isEmpty()) return null;
+
+        Ft8Message msg = new Ft8Message(FT8Common.FT8_MODE);
+        msg.utcTime = utc;
+        msg.isValid = true;
+        msg.snr = Math.round(row.snr);
+        msg.time_sec = row.dt;
+        msg.freq_hz = row.freq;
+        msg.band = GeneralVariables.band;
+        msg.signalFormat = FT8Common.FT8_MODE;
+        msg.isWeakSignal = false;
+        //空字符串而不是 null：下游 getCallsignAndGrid/addCallsignQTH 会直接使用
+        msg.maidenGrid = "";
+
+        if (row.structured) {
+            // ft8_w 已按 77 bit 载荷给出 i3/n3、呼号、附加信息和网格
+            msg.i3 = row.i3;
+            msg.n3 = row.n3;
+            msg.callsignTo = row.callTo == null ? "" : row.callTo;
+            msg.callsignFrom = row.callDe == null ? "" : row.callDe;
+            msg.extraInfo = row.extra == null ? "" : row.extra;
+            msg.maidenGrid = row.grid == null ? "" : row.grid;
+            //从附加信息里补信号报告（“-12”“R-05”等）
+            msg.report = parseReport(row.extra);
+        } else {
+            // 兼容没有结构化字段的旧版 so
+            parseWsjtxText(msg, text);
+            parseWsjtxExtra(msg);
+        }
+        // 列表显示始终使用库返回的可读报文
+        msg.displayText = text;
+        return msg;
+    }
+
+    /**
+     * 从附加信息中解析信号报告；不是报告时返回 -100。
+     */
+    private int parseReport(String extra) {
+        if (extra == null) return -100;
+        String s = extra.trim().toUpperCase();
+        if (s.matches("R?[+-]\\d{1,2}")) {
+            try {
+                return Integer.parseInt(s.startsWith("R") ? s.substring(1) : s);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -100;
     }
 
     /**
