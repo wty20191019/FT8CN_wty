@@ -60,8 +60,8 @@ public class WaterfallView extends View {
     private int freq_hz = -1;
     private boolean drawMessage = false;//是否画消息内容
 
-    //Turbo 配色：每帧强度直方图与平滑后的动态范围
-    private final int[] turboHist = new int[256];
+    //自动动态范围：每帧强度直方图与平滑后的范围
+    private final int[] dynHist = new int[256];
     private float dynLow = 0f;
     private float dynHigh = 255f;
     private boolean dynReady = false;
@@ -210,12 +210,33 @@ public class WaterfallView extends View {
     }
 
     /**
-     * Turbo 配色：按当前帧的 p2~p99 自动拉伸，并做时间平滑，避免画面闪烁。
+     * 经典配色 + 自动动态范围：先把当前帧 p2~p99 拉伸到 0~255，再套用原来的颜色公式。
      */
-    private void fillTurboColors(int[] colors, int[] data) {
-        Arrays.fill(turboHist, 0);
+    private void fillClassicColors(int[] colors, int[] data) {
+        updateDynamicRange(data);
+        float scale = 255f / (dynHigh - dynLow);
         for (int i = 0; i < data.length; i++) {
-            turboHist[data[i] & 0xff]++;
+            int v = (int) ((data[i] - dynLow) * scale);
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+
+            if (v < 128) {//低于一半的音量，用蓝色0~256
+                colors[i] = 0xff000000 | (v << 1);
+            } else if (v < 192) {
+                colors[i] = 0xff0000ff | ((v - 127) << 10);//放大4倍
+            } else {
+                colors[i] = 0xff00ffff | ((v - 127) << 18);//放大4倍
+            }
+        }
+    }
+
+    /**
+     * 按当前帧的 p2~p99 更新动态范围，并做时间平滑，避免画面闪烁。
+     */
+    private void updateDynamicRange(int[] data) {
+        Arrays.fill(dynHist, 0);
+        for (int i = 0; i < data.length; i++) {
+            dynHist[data[i] & 0xff]++;
         }
         float p2 = percentile(0.02f, data.length);
         float p99 = percentile(0.99f, data.length);
@@ -225,12 +246,11 @@ public class WaterfallView extends View {
             dynHigh = p99;
             dynReady = true;
         } else {
-            //时间平滑：避免每帧分位跳动导致颜色闪烁
             dynLow += (p2 - dynLow) * 0.30f;
             dynHigh += (p99 - dynHigh) * 0.30f;
         }
 
-        //范围太小会把噪声放大成彩色雪花，强制至少 12 级
+        //范围太小会把噪声放大成雪花，强制至少 12 级
         if (dynHigh - dynLow < 12f) {
             float center = (dynLow + dynHigh) * 0.5f;
             dynLow = center - 6f;
@@ -238,14 +258,6 @@ public class WaterfallView extends View {
         }
         if (dynLow < 0f) dynLow = 0f;
         if (dynHigh > 255f) dynHigh = 255f;
-        float scale = 255f / (dynHigh - dynLow);
-
-        for (int i = 0; i < data.length; i++) {
-            int idx = (int) ((data[i] - dynLow) * scale);
-            if (idx < 0) idx = 0;
-            if (idx > 255) idx = 255;
-            colors[i] = TurboPalette.COLORS[idx];
-        }
     }
 
     /**
@@ -255,7 +267,7 @@ public class WaterfallView extends View {
         int target = (int) (total * p);
         int cum = 0;
         for (int v = 0; v < 256; v++) {
-            cum += turboHist[v];
+            cum += dynHist[v];
             if (cum >= target) return v;
         }
         return 255f;
@@ -293,21 +305,8 @@ public class WaterfallView extends View {
         }
         lastSequential = sequential;
 
-        //色块分布
-        if (GeneralVariables.waterfallTurbo) {
-            fillTurboColors(colors, data);
-        } else {
-            for (int i = 0; i < data.length; i++) {
-                if (data[i] < 128) {//低于一半的音量，用蓝色0~256
-                    colors[i] = 0xff000000 | (data[i] << 1);
-                } else if (data[i] < 192) {
-                    colors[i] = 0xff0000ff | (((data[i] - 127)) << 10);//放大4倍
-//                colors[i] = 0xff000000 | (data[i] * 2 * 256 + 255);
-                } else {
-                    colors[i] = 0xff00ffff | (((data[i] - 127)) << 18);//放大4倍
-                }
-            }
-        }
+        //色块分布：经典配色 + 自动动态范围
+        fillClassicColors(colors, data);
         LinearGradient linearGradient = new LinearGradient(0, 0, getWidth() * 2, 0, colors
                 , null, Shader.TileMode.CLAMP);
         //Paint linearPaint = new Paint();

@@ -2103,10 +2103,6 @@ public class DatabaseOpr extends SQLiteOpenHelper {
                 if (name.equalsIgnoreCase("synFreq")) {
                     GeneralVariables.synFrequency = !(result.equals("") || result.equals("0"));
                 }
-                if (name.equalsIgnoreCase("waterfallTurbo")) {
-                    //缺省=Turbo，只有明确写 0 才回退经典配色
-                    GeneralVariables.waterfallTurbo = !(result.equals("") || result.equals("0"));
-                }
                 if (name.equalsIgnoreCase("transDelay")) {
                     if (result.matches("^\\d{1,4}$")) {//正则表达式，1-4位长度的数字
                         GeneralVariables.transmitDelay = Integer.parseInt(result);

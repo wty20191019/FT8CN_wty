@@ -370,9 +370,6 @@ public class ConfigFragment extends Fragment {
         //设置解码模式
         setDecodeMode();
 
-        //设置瀑布图配色（Turbo / 经典）
-        setWaterfallTurbo();
-
         //设置音频输出的位数
         setAudioOutputBitsMode();
 
@@ -1115,29 +1112,6 @@ public class ConfigFragment extends Fragment {
 
     }
 
-
-    /**
-     * 设置瀑布图配色：默认 Turbo，可回退经典配色。
-     */
-    private void setWaterfallTurbo() {
-        binding.waterfallTurboSwitch.setOnCheckedChangeListener(null);
-        binding.waterfallTurboSwitch.setChecked(GeneralVariables.waterfallTurbo);
-        updateWaterfallTurboText();
-        binding.waterfallTurboSwitch.setOnCheckedChangeListener(
-                new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-                        GeneralVariables.waterfallTurbo = checked;
-                        writeConfig("waterfallTurbo", checked ? "1" : "0");
-                        updateWaterfallTurboText();
-                    }
-                });
-    }
-
-    private void updateWaterfallTurboText() {
-        binding.waterfallTurboSwitch.setText(binding.waterfallTurboSwitch.isChecked()
-                ? R.string.waterfall_turbo_on : R.string.waterfall_turbo_off);
-    }
 
     private void setDecodeMode() {
         // 保留四档：快速、深度、wsjtx普通多核、ft8_w2。
