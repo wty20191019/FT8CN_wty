@@ -140,50 +140,9 @@ public class ConfigFragment extends Fragment {
             setfreq(editable.toString());
         }
     };
-    //瀑布图低阈值
-    private final TextWatcher onWaterfallLowChanged = new TextWatcher() {
-        @Override
-        public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-        }
-
-        @Override
-        public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-        }
-
-        @Override
-        public void afterTextChanged(Editable editable) {
-            try {
-                int v = Integer.parseInt(editable.toString().trim());
-                if (v < 0 || v > 254 || v >= GeneralVariables.waterfallHigh) return;
-                GeneralVariables.waterfallLow = v;
-                writeConfig("wfLow", String.valueOf(v));
-            } catch (NumberFormatException ignored) {
-            }
-        }
-    };
-    //瀑布图高阈值
-    private final TextWatcher onWaterfallHighChanged = new TextWatcher() {
-        @Override
-        public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-        }
-
-        @Override
-        public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-        }
-
-        @Override
-        public void afterTextChanged(Editable editable) {
-            try {
-                int v = Integer.parseInt(editable.toString().trim());
-                if (v < 1 || v > 255 || v <= GeneralVariables.waterfallLow) return;
-                GeneralVariables.waterfallHigh = v;
-                writeConfig("wfHigh", String.valueOf(v));
-            } catch (NumberFormatException ignored) {
-            }
-        }
-    };
     //发射延迟时间
-    private final TextWatcher onTransDelayEditorChanged = new TextWatcher() {        @Override
+    private final TextWatcher onTransDelayEditorChanged = new TextWatcher() {
+        @Override
         public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
 
         }
@@ -410,9 +369,6 @@ public class ConfigFragment extends Fragment {
 
         //设置解码模式
         setDecodeMode();
-
-        //设置瀑布图强度阈值
-        setWaterfallThreshold();
 
         //设置音频输出的位数
         setAudioOutputBitsMode();
@@ -1156,18 +1112,6 @@ public class ConfigFragment extends Fragment {
 
     }
 
-
-    /**
-     * 设置瀑布图强度阈值（0~255），保存后立即生效。
-     */
-    private void setWaterfallThreshold() {
-        binding.waterfallLowEditor.removeTextChangedListener(onWaterfallLowChanged);
-        binding.waterfallHighEditor.removeTextChangedListener(onWaterfallHighChanged);
-        binding.waterfallLowEditor.setText(String.valueOf(GeneralVariables.waterfallLow));
-        binding.waterfallHighEditor.setText(String.valueOf(GeneralVariables.waterfallHigh));
-        binding.waterfallLowEditor.addTextChangedListener(onWaterfallLowChanged);
-        binding.waterfallHighEditor.addTextChangedListener(onWaterfallHighChanged);
-    }
 
     private void setDecodeMode() {
         // 保留四档：快速、深度、wsjtx普通多核、ft8_w2。

@@ -493,9 +493,6 @@
     <string name="wsjtx_parallel_mode">wsjtx Normal multi-core</string>
     <string name="wsjtx_deep_parallel_mode">wsjtx Deep multi-core</string>
     <string name="ft8w_mode">ft8_w2</string>
-    <string name="waterfall_threshold">Waterfall range</string>
-    <string name="waterfall_low">Low</string>
-    <string name="waterfall_high">High</string>
     <string name="export_null">Export from WebUI via web browser on another device under the same LAN \n Please connect to a valid Wi-Fi</string>
     <string name="null_task_html">Task not exist!</string>
     <string name="log_importing_html">Importing...</string>

@@ -202,24 +202,8 @@ public class WaterfallView extends View {
         invalidate();
     }
 
-    /**
-     * 瀑布配色：把强度按设置的低/高阈值线性映射到 0~255，再查蓝单色相渐变表。
-     */
-    private void fillWaterfallColors(int[] colors, int[] data) {
-        int low = GeneralVariables.waterfallLow;
-        int high = GeneralVariables.waterfallHigh;
-        if (high <= low) high = low + 1;
-        float scale = 255f / (high - low);
-
-        for (int i = 0; i < data.length; i++) {
-            int v = (int) ((data[i] - low) * scale);
-            if (v < 0) v = 0;
-            if (v > 255) v = 255;
-            colors[i] = WaterfallPalette.COLORS[v];
-        }
-    }
-
-    public void setWaveData(int[] data, int sequential, List<Ft8Message> msgs) {        if (drawMessage&& msgs!=null){//把需要画的消息复制出来防止多线程访问冲突
+    public void setWaveData(int[] data, int sequential, List<Ft8Message> msgs) {
+        if (drawMessage&& msgs!=null){//把需要画的消息复制出来防止多线程访问冲突
             messages=new ArrayList<>(msgs);
         }else {
             messages.clear();//当设定不标记消息时，要清空原来的消息
@@ -251,8 +235,19 @@ public class WaterfallView extends View {
         }
         lastSequential = sequential;
 
-        //色块分布：蓝单色相渐变 + 手动阈值
-        fillWaterfallColors(colors, data);
+        //色块分布
+        for (int i = 0; i < data.length; i++) {
+
+
+            if (data[i] < 128) {//低于一半的音量，用蓝色0~256
+                colors[i] = 0xff000000 | (data[i] << 1);
+            } else if (data[i] < 192) {
+                colors[i] = 0xff0000ff | (((data[i] - 127)) << 10);//放大4倍
+//                colors[i] = 0xff000000 | (data[i] * 2 * 256 + 255);
+            } else {
+                colors[i] = 0xff00ffff | (((data[i] - 127)) << 18);//放大4倍
+            }
+        }
         LinearGradient linearGradient = new LinearGradient(0, 0, getWidth() * 2, 0, colors
                 , null, Shader.TileMode.CLAMP);
         //Paint linearPaint = new Paint();

@@ -1662,89 +1662,6 @@
 
 
                     <androidx.constraintlayout.widget.ConstraintLayout
-                        android:id="@+id/waterfallThresholdLayout"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:background="@drawable/editor_layout_style"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/decodeModeLayout">
-
-                        <TextView
-                            android:id="@+id/waterfallThresholdText"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/waterfall_threshold"
-                            android:textColor="@color/text_view_color"
-                            android:textSize="14sp"
-                            app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintStart_toStartOf="parent"
-                            app:layout_constraintTop_toTopOf="parent" />
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            app:layout_constraintBottom_toBottomOf="parent"
-                            app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintTop_toTopOf="parent">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/waterfall_low"
-                                android:textColor="@color/text_view_color"
-                                android:textSize="12sp" />
-
-                            <EditText
-                                android:id="@+id/waterfallLowEditor"
-                                android:layout_width="56dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
-                                android:autofillHints=""
-                                android:background="@drawable/editor_style"
-                                android:ems="3"
-                                android:importantForAutofill="no"
-                                android:inputType="number"
-                                android:maxLength="3"
-                                android:minHeight="32dp"
-                                android:textAlignment="center"
-                                android:textColor="@color/text_view_color"
-                                android:textSize="14sp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
-                                android:text="@string/waterfall_high"
-                                android:textColor="@color/text_view_color"
-                                android:textSize="12sp" />
-
-                            <EditText
-                                android:id="@+id/waterfallHighEditor"
-                                android:layout_width="56dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
-                                android:autofillHints=""
-                                android:background="@drawable/editor_style"
-                                android:ems="3"
-                                android:importantForAutofill="no"
-                                android:inputType="number"
-                                android:maxLength="3"
-                                android:minHeight="32dp"
-                                android:textAlignment="center"
-                                android:textColor="@color/text_view_color"
-                                android:textSize="14sp" />
-                        </LinearLayout>
-
-                    </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-                    <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/alarmSwitchLayout"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -1752,7 +1669,7 @@
                         android:background="@drawable/editor_layout_style"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/waterfallThresholdLayout">
+                        app:layout_constraintTop_toBottomOf="@+id/decodeModeLayout">
 
                         <TextView
                             android:id="@+id/alarmSwitchText"
