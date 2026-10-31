@@ -203,9 +203,9 @@ public class WaterfallView extends View {
     }
 
     /**
-     * Turbo 配色：把强度按设置的低/高阈值线性映射到 0~255，再查表。
+     * 瀑布配色：把强度按设置的低/高阈值线性映射到 0~255，再查蓝单色相渐变表。
      */
-    private void fillTurboColors(int[] colors, int[] data) {
+    private void fillWaterfallColors(int[] colors, int[] data) {
         int low = GeneralVariables.waterfallLow;
         int high = GeneralVariables.waterfallHigh;
         if (high <= low) high = low + 1;
@@ -215,7 +215,7 @@ public class WaterfallView extends View {
             int v = (int) ((data[i] - low) * scale);
             if (v < 0) v = 0;
             if (v > 255) v = 255;
-            colors[i] = TurboPalette.COLORS[v];
+            colors[i] = WaterfallPalette.COLORS[v];
         }
     }
 
@@ -251,8 +251,8 @@ public class WaterfallView extends View {
         }
         lastSequential = sequential;
 
-        //色块分布：Turbo 配色 + 手动阈值
-        fillTurboColors(colors, data);
+        //色块分布：蓝单色相渐变 + 手动阈值
+        fillWaterfallColors(colors, data);
         LinearGradient linearGradient = new LinearGradient(0, 0, getWidth() * 2, 0, colors
                 , null, Shader.TileMode.CLAMP);
         //Paint linearPaint = new Paint();
