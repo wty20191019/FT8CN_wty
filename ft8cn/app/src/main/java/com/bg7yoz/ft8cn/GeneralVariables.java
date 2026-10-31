@@ -186,6 +186,8 @@ public class GeneralVariables {
     public static String cloudlogStationID = "";//cloudlog的站点ID
     public static String qrzApiKey = ""; //qrz的key
     public static boolean synFrequency = false;//同频发射
+    public static int waterfallLow = 0;//瀑布图强度下限（0~254）
+    public static int waterfallHigh = 255;//瀑布图强度上限（1~255）
     public static int transmitDelay = 500;//发射延迟时间，这个时间也是给上一个周期的解码时间
     public static int pttDelay = 100;//PTT的响应时间，在给电台PTT指令后，一般电台会有一个响应时间，此处默认是100毫秒
     public static int civAddress = 0xa4;//civ地址
