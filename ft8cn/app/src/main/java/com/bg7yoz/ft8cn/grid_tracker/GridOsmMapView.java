@@ -146,10 +146,19 @@ public class GridOsmMapView {
         line.getOutlinePaint().setStrokeWidth(6);
         //mOutlinePaint = getStrokePaint(0xffFF1E27, 3);
 
-        GeoPoint eastNorthPoint = new GeoPoint(line.getActualPoints().get(0).getLatitude()
-                , line.getActualPoints().get(0).getLongitude());
-        GeoPoint westSouthPoint = new GeoPoint(line.getActualPoints().get(1).getLatitude()
-                , line.getActualPoints().get(1).getLongitude());
+        //开启大圆航线后，getActualPoints()会包含大量插值点，
+        //因此用起点、终点判断经度方向，并扫描全部点取得纬度范围，保证整条弧线都能显示
+        GeoPoint eastNorthPoint = new GeoPoint(line.fromLatLng.latitude
+                , line.fromLatLng.longitude);
+        GeoPoint westSouthPoint = new GeoPoint(line.toLatLng.latitude
+                , line.toLatLng.longitude);
+
+        double northLat = -90.0;
+        double southLat = 90.0;
+        for (GeoPoint point : line.getActualPoints()) {
+            if (point.getLatitude() > northLat) northLat = point.getLatitude();
+            if (point.getLatitude() < southLat) southLat = point.getLatitude();
+        }
 
         if (Math.abs(westSouthPoint.getLongitude() - eastNorthPoint.getLongitude()) > 180) {
             if (eastNorthPoint.getLongitude() > westSouthPoint.getLongitude()) {
@@ -166,14 +175,9 @@ public class GridOsmMapView {
 
             }
         }
-        if (eastNorthPoint.getLatitude() < westSouthPoint.getLatitude()) {
-            double temp = westSouthPoint.getLatitude();
-            westSouthPoint.setLatitude(eastNorthPoint.getLatitude());
-            eastNorthPoint.setLatitude(temp);
-        }
 
-        boundingBox.set(eastNorthPoint.getLatitude(), eastNorthPoint.getLongitude()
-                , westSouthPoint.getLatitude(), westSouthPoint.getLongitude());
+        boundingBox.set(northLat, eastNorthPoint.getLongitude()
+                , southLat, westSouthPoint.getLongitude());
 
         gridMapView.zoomToBoundingBox(boundingBox, true, 100);
     }
@@ -558,12 +562,17 @@ public class GridOsmMapView {
         //public String toGrid;
         public Ft8Message msg;
         public QSLRecordStr recorder;
+        //保存起点、终点，便于计算缩放范围（开启大圆航线后点集会被插值扩充）
+        public final LatLng fromLatLng;
+        public final LatLng toLatLng;
         //public boolean marked = false;
 
         @SuppressLint("DefaultLocale")
         public GridPolyLine(MapView mapView, LatLng fromLatLng, LatLng toLatLng, QSLRecordStr recordStr) {
             super(mapView);
             this.recorder = recordStr;
+            this.fromLatLng = fromLatLng;
+            this.toLatLng = toLatLng;
             setSnippet(String.format(String.format("%s %s",
                     String.format(GeneralVariables.getStringFromResource(R.string.qsl_freq)
                             , recordStr.getFreq()),
@@ -593,8 +602,9 @@ public class GridOsmMapView {
             pts.add(GridOsmMapView.LatLng2GeoPoint(toLatLng));
 
 
-            setPoints(pts);
+            //注意：必须在 setPoints 之前开启，osmdroid只会在添加点时按大圆航线插值
             setGeodesic(true);
+            setPoints(pts);
             setInfoWindow(new GridRecordInfoWindow(R.layout.tracker_record_info_win, mapView));
             mapView.getOverlayManager().add(this);
         }
@@ -603,6 +613,8 @@ public class GridOsmMapView {
         public GridPolyLine(MapView mapView, LatLng fromLatLng, LatLng toLatLng, Ft8Message msg) {
             super(mapView);
             this.msg = msg;
+            this.fromLatLng = fromLatLng;
+            this.toLatLng = toLatLng;
 
             setSnippet(String.format("%s<--%s", msg.toWhere, msg.fromWhere));//表示距离
             setSubDescription(String.format("%dBm , %.1f ms , %s"
@@ -623,8 +635,9 @@ public class GridOsmMapView {
             pts.add(GridOsmMapView.LatLng2GeoPoint(toLatLng));
 
 
-            setPoints(pts);
+            //注意：必须在 setPoints 之前开启，osmdroid只会在添加点时按大圆航线插值
             setGeodesic(true);
+            setPoints(pts);
             setInfoWindow(new GridInfoWindow(R.layout.tracker_grid_info_win, mapView, msg));
             mapView.getOverlayManager().add(this);
             //showInfoWindow();
