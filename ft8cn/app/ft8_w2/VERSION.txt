@@ -1,0 +1,4 @@
+ft8_w2 0.1.0
+ft8 C core 0.1.0
+构建目标: android-23, arm64-v8a + x86_64
+解码档位: precise (osr=2x2, cand=100, iters=20, depth=0, osd=3, snr_mode=2, threads=1)

@@ -1,0 +1,16 @@
+mfsk-core / mfsk-ffi version : 0.12.0
+mfsk-core git commit        : 22945e0a
+build date                  : 2026-10-22
+target min API             : 23
+page size                   : 16384 (16 KB)
+
+arm64-v8a/libwsjtx_Android.so
+  size    : 2128568 bytes (2.03 MB)
+  sha256  : b301aa35f8bfae699c9af0f15fa2b17a71c9a7a054a181c5c7bcc537103e26aa
+
+x86_64/libwsjtx_Android.so
+  size    : 3262088 bytes (3.11 MB)
+  sha256  : 9c94d1f22e6756e44d756f61b6c4330eeef0e5b2ccc6519947c1c917dc86ad5c
+
+NEEDED libraries:
+  liblog.so libm.so libdl.so libc.so

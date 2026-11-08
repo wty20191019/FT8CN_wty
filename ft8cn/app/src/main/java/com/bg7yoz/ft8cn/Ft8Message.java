@@ -48,6 +48,11 @@ public class Ft8Message {
 
     public String extraInfo = null;
     public String maidenGrid = null;
+    /**
+     * wsjtx 已经解好的原始可读报文。非 null 时列表直接显示它，
+     * 避免用结构字段重新拼接后改变原文（特殊报文尤其重要）。
+     */
+    public String displayText = null;
 
     public String rtty_state =null;//RTTY RU(i3=3类型)的地区名，两位字母如：CA、AL
     public int r_flag=0;//RTTY RU,EU VHF(i3=3,i3=5类型)的R标志
@@ -163,6 +168,7 @@ public class Ft8Message {
 
             extraInfo = message.extraInfo;
             maidenGrid = message.maidenGrid;
+            displayText = message.displayText;
             report = message.report;
             callToHash10 = message.callToHash10;
             callToHash12 = message.callToHash12;
@@ -223,6 +229,10 @@ public class Ft8Message {
      */
     @SuppressLint("DefaultLocale")
     public String getMessageText() {
+
+        if (displayText != null && !displayText.isEmpty()) {
+            return displayText;
+        }
 
         if (i3 == 0 && n3 == 0) {//说明是自由文本
             if (extraInfo.length() < 13) {

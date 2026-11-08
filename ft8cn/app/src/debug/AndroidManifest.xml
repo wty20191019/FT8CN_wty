@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- 仅 debug 包存在的解码召回率基准入口 -->
+        <activity
+            android:name="com.bg7yoz.ft8cn.ft8listener.BenchmarkActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ft8CN" />
+    </application>
+</manifest>

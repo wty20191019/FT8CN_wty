@@ -597,9 +597,7 @@ public class LogHttpServer extends NanoHTTPD {
 
         HtmlContext.tableKeyRow(result, false
                 , GeneralVariables.getStringFromResource(R.string.decode_mode_text)
-                , GeneralVariables.deepDecodeMode
-                        ? GeneralVariables.getStringFromResource(R.string.deep_mode)
-                        : GeneralVariables.getStringFromResource(R.string.fast_mode));
+                , GeneralVariables.getDecodeModeName());
 
 
         HtmlContext.tableKeyRow(result, true
